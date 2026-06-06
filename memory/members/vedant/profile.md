@@ -8,11 +8,11 @@ earning_status: employed
 
 ## Identity
 - **Name:** Vedant Shah
-- **Role in family:** Son (developer/builder of this app)
+- **Role in family:** Son
 - **Earning status:** Employed
 
 ## Financial snapshot
-- **Monthly income:** [fill in]
+- **Monthly income:** ₹1000
 - **Monthly commitments:** [fill in — rent, EMIs, subscriptions]
 - **Emergency fund target:** 6 months of expenses
 

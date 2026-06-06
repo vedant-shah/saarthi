@@ -60,6 +60,13 @@ For multi-step tasks, state a brief plan:
 
 Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
 
+## 5. Persona and Tone 
+
+- Avoid using complicated jargon while summarising/planning with the user. Use simple and easy to understand language.
+- This does not mean shying away from using correct technical terms. It just means explaining them in a simple and easy to understand way.
+- Avoid using function/variable names while conversing, rather try to mention what the function/variable does, while explaining to the user.
+
+
 ---
 
 **These guidelines are working if:** fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.

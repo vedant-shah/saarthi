@@ -9,10 +9,12 @@ Frozen SSE event shape (Day 1):
 # SSE event shape FROZEN at end of Day 1 — do not change without updating frontend (Day 2)
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import time
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 from typing import AsyncIterator
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -21,7 +23,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse
 
-from backend.agent import pipeline, sessions
+from backend.agent import durability, pipeline, sessions
 from backend.agent.llm_provider import get_provider
 from backend.agent.memory_updater import close_session
 from backend.agent.pipeline import TurnDone, TurnError, TurnToken
@@ -39,13 +41,10 @@ _IDLE_SWEEP_SECONDS = 60
 
 async def _sweep_idle() -> None:
     """Summarize and close sessions that have gone idle past the staleness
-    threshold. Runs on the scheduler; failures are isolated per session."""
-    for member, sid in sessions.idle_sessions(time.monotonic()):
-        try:
-            await close_session(member, sid)
-            sessions.close(member)
-        except Exception:
-            logger.exception("idle sweep failed: %s/%s", member, sid)
+    threshold. Disk-driven so it catches transcripts left by a prior process
+    that shut down before its own sweep fired. Failures are isolated per
+    session inside scan_and_close_stale."""
+    await durability.scan_and_close_stale(datetime.now(timezone.utc))
 
 
 @asynccontextmanager
@@ -53,10 +52,28 @@ async def lifespan(app: FastAPI):
     sched = AsyncIOScheduler()
     sched.add_job(_sweep_idle, "interval", seconds=_IDLE_SWEEP_SECONDS)
     sched.start()
+    # Fire-and-forget startup catch-up scan so sessions orphaned by a prior
+    # shutdown are summarized quickly, without blocking the first /health check.
+    _startup_task: asyncio.Task = asyncio.create_task(_startup_scan())
     try:
         yield
     finally:
+        _startup_task.cancel()
+        try:
+            await _startup_task
+        except (asyncio.CancelledError, Exception):
+            pass
         sched.shutdown(wait=False)
+
+
+async def _startup_scan() -> None:
+    """Catch-up scan run once at startup. Exceptions are logged, not lost."""
+    try:
+        closed = await durability.scan_and_close_stale(datetime.now(timezone.utc))
+        if closed:
+            logger.info("startup scan: closed %d stale session(s)", closed)
+    except Exception:
+        logger.exception("startup scan failed")
 
 
 app = FastAPI(title="Family Financial Advisor", lifespan=lifespan)

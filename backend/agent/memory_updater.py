@@ -13,6 +13,7 @@ marker is written last; on exception it is NOT written, so a retry can recover.
 """
 from __future__ import annotations
 
+import asyncio
 import logging
 from datetime import date
 from pathlib import Path
@@ -108,8 +109,19 @@ _SUMMARIZE_TOOL = {
 }
 
 
-def _marker_path(member: str, session_id: str) -> Path:
+def marker_path(member: str, session_id: str) -> Path:
     return settings.resolve(settings.sessions_dir) / member / f"{session_id}.closed"
+
+
+# Per-session async locks preventing TOCTOU on the check-summarize-mark body.
+# Lazily created; keyed by (member, session_id).
+_session_locks: dict[tuple[str, str], asyncio.Lock] = {}
+
+
+def _lock_for(member: str, session_id: str) -> asyncio.Lock:
+    # setdefault is atomic at the dict level, so concurrent callers for the same
+    # session always get the same lock without a check-then-set race.
+    return _session_locks.setdefault((member, session_id), asyncio.Lock())
 
 
 def _safe(label: str, fn) -> None:
@@ -175,28 +187,35 @@ async def close_session(member: str, session_id: str) -> None:
     """Summarize and persist a closed session. Idempotent via the .closed marker.
 
     No-op if already closed. If there is no transcript, only the marker is
-    written. On any failure, the marker is NOT written so the close can retry."""
-    marker = _marker_path(member, session_id)
-    if marker_exists(marker):
-        logger.info("memory_updater: already closed %s/%s", member, session_id)
-        return
+    written. On any failure, the marker is NOT written so the close can retry.
 
-    content = read_markdown_or_none(transcript_path(member, session_id))
-    if content is None:
-        logger.info("memory_updater: no transcript %s/%s — marking closed", member, session_id)
+    The per-session async lock closes the TOCTOU window: two concurrent callers
+    (startup scan + idle sweep + beacon) both pass the initial marker check
+    before either writes, but only one proceeds through the summarizer. The
+    marker is written LAST (after the network call) so a crash mid-summarize
+    leaves the session retryable."""
+    async with _lock_for(member, session_id):
+        marker = marker_path(member, session_id)
+        if marker_exists(marker):
+            logger.info("memory_updater: already closed %s/%s", member, session_id)
+            return
+
+        content = read_markdown_or_none(transcript_path(member, session_id))
+        if content is None:
+            logger.info("memory_updater: no transcript %s/%s — marking closed", member, session_id)
+            touch_marker(marker)
+            return
+
+        raw = await _get_provider().complete_json(
+            system=[SystemBlock(text=_SUMMARIZER_SYSTEM)],
+            messages=[{"role": "user", "content": content}],
+            tool=_SUMMARIZE_TOOL,
+            model=settings.summarizer_model,
+            max_tokens=1024,
+        )
+
+        today = date.today().isoformat()
+        _dispatch(member, raw, today)
+
         touch_marker(marker)
-        return
-
-    raw = await _get_provider().complete_json(
-        system=[SystemBlock(text=_SUMMARIZER_SYSTEM)],
-        messages=[{"role": "user", "content": content}],
-        tool=_SUMMARIZE_TOOL,
-        model=settings.summarizer_model,
-        max_tokens=1024,
-    )
-
-    today = date.today().isoformat()
-    _dispatch(member, raw, today)
-
-    touch_marker(marker)
-    logger.info("memory_updater: closed %s/%s", member, session_id)
+        logger.info("memory_updater: closed %s/%s", member, session_id)
