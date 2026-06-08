@@ -17,6 +17,13 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
+from backend.agent.current_value import (
+    UpsertOutcome,
+    append_dated_snapshot,
+    append_staging,
+    upsert_current_value,
+)
+from backend.agent.provenance import Provenance
 from backend.config import settings
 from backend.utils.markdown_io import append_markdown, read_markdown_or_none
 
@@ -30,7 +37,9 @@ class CrossMemberWriteError(Exception):
 
 def _assert_writable(writer: str, target: Path) -> None:
     root = settings.resolve(settings.memory_dir).resolve()
-    allowed = (root / "members" / writer, root / "family")
+    # members/<writer> is the writer's own tree; family/ and working/ are shared
+    # destinations (joint facts and staging) permitted to any writer.
+    allowed = (root / "members" / writer, root / "family", root / "working")
     resolved = target.resolve()
     if not any(
         resolved == a or a in resolved.parents for a in (a.resolve() for a in allowed)
@@ -40,6 +49,10 @@ def _assert_writable(writer: str, target: Path) -> None:
 
 def _member_file(writer: str, fname: str) -> Path:
     return settings.resolve(settings.memory_dir) / "members" / writer / fname
+
+
+def _working_file(fname: str) -> Path:
+    return settings.resolve(settings.memory_dir) / "working" / fname
 
 
 def _id_marker(dedup_id: str) -> str:
@@ -138,3 +151,124 @@ def record_status_transition(
     p = _member_file(writer, "agent_notes.md")
     entry = f"\n- {date}: {item} — {from_status} → {to_status}\n"
     _append_entry(writer, p, entry, dedup_id)
+
+
+# --- current-value / dated-log / staging writers (MEMORY_DATA_MODEL §3-§7) ---
+#
+# Each runs `_assert_writable` FIRST, then delegates to the path-agnostic engine
+# in `current_value.py`. Provenance (source/confidence/as_of/last_updated) is
+# stamped on every entry; `last_updated` defaults to `as_of` when not supplied.
+
+
+def write_financial_fact(
+    writer: str,
+    *,
+    key: str,
+    value: str,
+    category: str,
+    cadence: str,
+    source: str,
+    confidence: str,
+    as_of: str,
+    last_updated: str | None = None,
+    dedup_id: str,
+) -> UpsertOutcome:
+    """Upsert one cash-flow/debt fact into finances.md (current-value).
+
+    `key` is the stable identity (e.g. `income.salary`, `expense.rent`,
+    `liability.home_loan`). A lower-authority conflicting value is staged to
+    working/discrepancies.md rather than clobbering a higher-authority value."""
+    p = _member_file(writer, "finances.md")
+    _assert_writable(writer, p)
+    prov = Provenance(
+        source=source, confidence=confidence, as_of=as_of, last_updated=last_updated or as_of
+    )
+    return upsert_current_value(
+        p,
+        key=key,
+        fields={"value": value, "category": category, "cadence": cadence},
+        prov=prov,
+        dedup_id=dedup_id,
+        discrepancies_path=_working_file("discrepancies.md"),
+    )
+
+
+def write_portfolio_snapshot(
+    writer: str,
+    *,
+    as_of: str,
+    holdings: dict[str, str],
+    source: str,
+    confidence: str,
+    last_updated: str | None = None,
+    dedup_id: str,
+) -> bool:
+    """Append a full dated holdings snapshot to portfolio_snapshots.md (dated-log)."""
+    p = _member_file(writer, "portfolio_snapshots.md")
+    _assert_writable(writer, p)
+    prov = Provenance(
+        source=source, confidence=confidence, as_of=as_of, last_updated=last_updated or as_of
+    )
+    return append_dated_snapshot(
+        p, as_of=as_of, fields=holdings, prov=prov, dedup_id=dedup_id
+    )
+
+
+def write_inference(
+    writer: str,
+    *,
+    topic: str,
+    claim: str,
+    basis: str,
+    confidence: str,
+    as_of: str,
+    source: str = "inference",
+    last_updated: str | None = None,
+    dedup_id: str,
+) -> UpsertOutcome:
+    """Upsert a behavioral inference into inferences.md (current-value), keyed by
+    topic. Soft-update accrual (§10) is the reconciler's job; this is the
+    mechanism it calls when it decides the claim itself should change."""
+    p = _member_file(writer, "inferences.md")
+    _assert_writable(writer, p)
+    prov = Provenance(
+        source=source, confidence=confidence, as_of=as_of, last_updated=last_updated or as_of
+    )
+    return upsert_current_value(
+        p, key=topic, fields={"claim": claim, "basis": basis}, prov=prov, dedup_id=dedup_id
+    )
+
+
+def write_risk_profile(
+    writer: str,
+    *,
+    dimension: str,
+    stance: str,
+    basis: str,
+    confidence: str,
+    as_of: str,
+    source: str = "conversation",
+    last_updated: str | None = None,
+    dedup_id: str,
+) -> UpsertOutcome:
+    """Upsert a revealed risk stance into risk_profile.md (current-value), keyed
+    by dimension (e.g. `risk_tolerance`, `horizon`)."""
+    p = _member_file(writer, "risk_profile.md")
+    _assert_writable(writer, p)
+    prov = Provenance(
+        source=source, confidence=confidence, as_of=as_of, last_updated=last_updated or as_of
+    )
+    return upsert_current_value(
+        p, key=dimension, fields={"stance": stance, "basis": basis}, prov=prov, dedup_id=dedup_id
+    )
+
+
+def stage_cross_member_observation(
+    writer: str, *, observation: str, about: str, date: str, dedup_id: str
+) -> bool:
+    """Stage an observation one member's session made about another member to
+    working/cross_member_observations.md. Never writes the other member's tree
+    (§7): promoted only on confirmation at that member's next session."""
+    p = _working_file("cross_member_observations.md")
+    entry = f"{date} — (via {writer}, about {about}): {observation}"
+    return append_staging(p, entry=entry, dedup_id=dedup_id)

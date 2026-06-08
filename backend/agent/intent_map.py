@@ -24,15 +24,15 @@ from backend.agent.context_registry import entry_by_name
 #     member's profile; multi-member profile loading is not supported yet.
 #     Mapped to the family-relevant files that DO exist. NOTED as a gap.
 INTENT_FILES: dict[str, tuple[str, ...]] = {
-    "surplus_allocation": ("member.goals", "member.portfolio_summary", "member.liabilities"),  # +recommendations (omitted)
+    "surplus_allocation": ("member.goals", "member.portfolio_summary", "member.finances"),  # +recommendations (omitted)
     "goal_feasibility": ("member.goals", "member.portfolio_summary"),
     "portfolio_review": ("member.portfolio_summary", "member.goals"),  # +recommendations (omitted)
     "financial_literacy": ("member.portfolio_summary",),
-    "family_planning": ("member.liabilities", "member.goals"),  # +all members' profiles (gap)
+    "family_planning": ("member.finances", "member.goals"),  # +all members' profiles (gap)
     "insurance": ("member.insurance",),  # +calendar (Tier 1)
     "tax_planning": ("member.tax", "member.portfolio_summary"),  # +calendar (Tier 1)
-    "debt_management": ("member.liabilities", "member.portfolio_summary"),
-    "review_checkin": ("member.goals", "member.portfolio_summary", "member.liabilities", "member.insurance"),  # +recommendations,calendar (omitted/Tier1)
+    "debt_management": ("member.finances", "member.portfolio_summary"),
+    "review_checkin": ("member.goals", "member.portfolio_summary", "member.finances", "member.insurance"),  # +recommendations,calendar (omitted/Tier1)
     "life_event": (),
     "general": (),
 }

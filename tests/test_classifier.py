@@ -32,7 +32,7 @@ async def test_valid_response_maps_files(fake_provider):
     assert result.output["relevant_memory_files"] == [
         "members/vedant/goals",
         "members/vedant/portfolio_summary",
-        "members/vedant/liabilities",
+        "members/vedant/finances",
     ]
 
 

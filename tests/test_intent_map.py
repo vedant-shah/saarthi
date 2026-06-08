@@ -7,7 +7,7 @@ def test_surplus_allocation_resolves_three_stems():
     assert files_for_intent("surplus_allocation", "vedant") == [
         "members/vedant/goals",
         "members/vedant/portfolio_summary",
-        "members/vedant/liabilities",
+        "members/vedant/finances",
     ]
 
 
