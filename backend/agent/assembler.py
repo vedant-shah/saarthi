@@ -42,15 +42,38 @@ _SECTION_HEADERS: dict[str, str] = {
 }
 
 
+def _load_persona(active_member: str) -> str | None:
+    """The persona/voice block (skills/core_system.md), loaded the same way the
+    FULL path loads it. Returned stripped of frontmatter, or None if missing."""
+    for entry in entries_by_policy("always"):
+        if entry.name == "skill.core_system":
+            content = read_markdown_or_none(
+                resolve_path(entry, active_member, settings.project_root)
+            )
+            return strip_frontmatter(content).strip() if content else None
+    return None
+
+
 def _build_minimal_prompt(
     *,
     active_member: str,
     in_session_history: list[dict],
     user_message: str,
 ) -> AssembledPrompt:
+    # MINIMAL skips the member's memory files and the catalog to stay cheap, but
+    # it MUST keep the persona: greetings/chit-chat are routed here, and that is
+    # exactly where the texting voice matters most. Without it the model falls
+    # back to default-assistant voice (markdown, self-introduction, em dashes).
     today = date.today().isoformat()
-    identity_stamp = f"You are a personal financial advisor. Today's date: {today}. Speaking with: {active_member}."
-    system = [SystemBlock(text=identity_stamp, cache=False)]
+    parts = [
+        "# Session context\n"
+        f"- Today's date: {today}\n"
+        f"- Speaking with: {active_member}"
+    ]
+    persona = _load_persona(active_member)
+    if persona:
+        parts.append(f"# {_SECTION_HEADERS['skill.core_system']}\n{persona}")
+    system = [SystemBlock(text="\n\n".join(parts), cache=False)]
     messages = in_session_history + [{"role": "user", "content": user_message}]
     return AssembledPrompt(
         system=system,

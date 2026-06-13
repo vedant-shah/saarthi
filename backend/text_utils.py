@@ -46,3 +46,23 @@ def replace_em_dashes(text: str) -> str:
         pos = match.end()
     parts.append(text[pos:])
     return "".join(parts)
+
+
+# A blank line (two newlines, optionally with whitespace between) is how the
+# advisor marks "send this as a separate text". Greedy whitespace collapses
+# runs of blank lines into a single split.
+_BLANK_LINE = re.compile(r"\n\s*\n")
+
+
+def to_bubbles(text: str) -> list[str]:
+    """Split a reply into chat bubbles on blank lines, em-dash-sanitize each,
+    and drop empty ones. Text with no blank line yields a single bubble; empty
+    or whitespace-only text yields no bubbles. This is the one path every
+    advisor reply takes before reaching the user, so no bubble can contain an
+    em dash."""
+    bubbles: list[str] = []
+    for chunk in _BLANK_LINE.split(text):
+        cleaned = replace_em_dashes(chunk).strip()
+        if cleaned:
+            bubbles.append(cleaned)
+    return bubbles

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import pytest
 
-from backend.text_utils import replace_em_dashes
+from backend.text_utils import replace_em_dashes, to_bubbles
 
 
 def test_numeric_range_becomes_hyphen() -> None:
@@ -69,3 +69,54 @@ def test_text_without_em_dashes_is_unchanged(text: str) -> None:
 def test_result_never_contains_em_dash() -> None:
     messy = "a—b — C, 1—2,— end—"
     assert "—" not in replace_em_dashes(messy)
+
+
+# --- to_bubbles: split a reply into chat bubbles on blank lines ---
+
+
+def test_single_paragraph_is_one_bubble() -> None:
+    assert to_bubbles("just one thought") == ["just one thought"]
+
+
+def test_blank_line_splits_into_bubbles() -> None:
+    assert to_bubbles("first thought\n\nsecond thought") == [
+        "first thought",
+        "second thought",
+    ]
+
+
+def test_three_bubbles() -> None:
+    assert to_bubbles("one\n\ntwo\n\nthree") == ["one", "two", "three"]
+
+
+def test_extra_blank_lines_collapse_to_one_split() -> None:
+    assert to_bubbles("one\n\n\n\ntwo") == ["one", "two"]
+
+
+def test_whitespace_only_chunks_are_dropped() -> None:
+    assert to_bubbles("one\n\n   \n\ntwo") == ["one", "two"]
+
+
+def test_each_bubble_is_trimmed() -> None:
+    assert to_bubbles("  hi there  ") == ["hi there"]
+
+
+def test_single_newline_stays_one_bubble() -> None:
+    assert to_bubbles("line one\nline two") == ["line one\nline two"]
+
+
+def test_empty_or_blank_text_yields_no_bubbles() -> None:
+    assert to_bubbles("") == []
+    assert to_bubbles("   \n\n   ") == []
+
+
+def test_em_dashes_are_stripped_per_bubble() -> None:
+    assert to_bubbles("spend less—save more\n\none rule—Never time it") == [
+        "spend less, save more",
+        "one rule: Never time it",
+    ]
+
+
+def test_no_bubble_contains_an_em_dash() -> None:
+    for bubble in to_bubbles("a—b\n\nc—D\n\n1—2"):
+        assert "—" not in bubble
