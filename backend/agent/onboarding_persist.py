@@ -16,6 +16,7 @@ gut-check answers -> risk_profile. Those need a schema/mapping decision.
 """
 from __future__ import annotations
 
+from datetime import date
 from pathlib import Path
 
 from backend.agent import writers
@@ -193,3 +194,42 @@ def persist_member_data(memory_root: Path, member: str, data: dict, *, today: st
             confidence=conf, source="onboarding_quiz", as_of=today,
             dedup_id=f"onb:risk:{dim}:{stance}",
         )
+
+
+def _valid_iso_date(value) -> str | None:
+    """Return an ISO `YYYY-MM-DD` string unchanged, else None."""
+    if not value or not isinstance(value, str):
+        return None
+    try:
+        return date.fromisoformat(value.strip()).isoformat()
+    except ValueError:
+        return None
+
+
+def persist_portfolio_snapshot(
+    member: str, holdings: list[dict], *, statement_date: str | None, today: str
+) -> str:
+    """Append a dated holdings snapshot (from an uploaded document) into
+    portfolio_snapshots.md, dated by the document's statement date when valid,
+    else today. Individual holding names are kept here even though the live
+    register (portfolio_summary) rolls them up by class. Returns the as_of used.
+
+    Idempotent: re-posting the same holdings for the same date is a NOOP via the
+    dedup id; an empty holdings list writes nothing."""
+    as_of = _valid_iso_date(statement_date) or today
+    fields: dict[str, str] = {}
+    for h in holdings or []:
+        label = (h.get("label") or "").strip()
+        amount = _num(h.get("amount"))
+        if label and amount:
+            fields[label] = amount
+    if fields:
+        writers.write_portfolio_snapshot(
+            member,
+            as_of=as_of,
+            holdings=fields,
+            source="document_upload",
+            confidence="high",
+            dedup_id=f"docsnap:{as_of}:" + ",".join(sorted(fields)),
+        )
+    return as_of

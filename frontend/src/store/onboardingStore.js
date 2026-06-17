@@ -204,16 +204,25 @@ export const useOnboardingStore = create((set, get) => ({
     return { self: data.self }
   },
 
-  // Persist one member's money/goals slice to the backend (best-effort). Runs
-  // after the roster created their dir; a failed POST leaves the draft to retry.
-  persistMemberData: async (memberId) => {
+  // Persist one member's onboarding data to the backend (best-effort). With a
+  // `phase` ('goals' | 'money' | 'check') only that phase's slice is sent, so
+  // each phase lands on disk as it completes; with no phase the full bundle is
+  // sent (a final safety flush). Runs after the roster created their dir; a
+  // failed POST leaves the draft to retry. The backend writes each slice
+  // idempotently, so partial sends and re-sends are safe.
+  persistMemberData: async (memberId, phase = null) => {
     const member = get().members.find((m) => m.id === memberId)
-    const payload = {
-      finances: get().finances[memberId] ?? {},
-      goals: get().goals[memberId] ?? [],
-      checks: get().checks[memberId] ?? {},
-      supportMonthly: member?.supportMonthly ?? null,
-    }
+    const finances = get().finances[memberId] ?? {}
+    const goals = get().goals[memberId] ?? []
+    const checks = get().checks[memberId] ?? {}
+    const supportMonthly = member?.supportMonthly ?? null
+
+    let payload
+    if (phase === 'goals') payload = { goals }
+    else if (phase === 'money') payload = { finances, supportMonthly }
+    else if (phase === 'check') payload = { checks }
+    else payload = { finances, goals, checks, supportMonthly }
+
     try {
       await fetch(ENDPOINTS.onboardingMemberData, {
         method: 'POST',

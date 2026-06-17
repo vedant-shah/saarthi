@@ -11,10 +11,12 @@ const NO_GOALS = []
 export function GoalTimeline({ member, onBack }) {
   const goals = useOnboardingStore((s) => s.goals[member.id]) ?? NO_GOALS
   const markPhaseDone = useOnboardingStore((s) => s.markPhaseDone)
+  const persistMemberData = useOnboardingStore((s) => s.persistMemberData)
   const openHub = useOnboardingStore((s) => s.openHub)
 
   const finish = () => {
     markPhaseDone(member.id, 'goals')
+    persistMemberData(member.id, 'goals')
     openHub()
   }
 

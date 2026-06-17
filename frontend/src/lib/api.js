@@ -8,4 +8,7 @@ export const ENDPOINTS = Object.freeze({
   onboardingComplete: '/api/onboarding/complete',
   onboardingRoster: '/api/onboarding/roster',
   onboardingMemberData: '/api/onboarding/member-data',
+  onboardingExtractDocument: '/api/onboarding/extract-document',
+  onboardingPortfolioSnapshot: '/api/onboarding/portfolio-snapshot',
+  onboardingGroupHoldings: '/api/onboarding/group-holdings',
 })

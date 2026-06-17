@@ -14,9 +14,11 @@ export function FinalNoteScreen({ member, onFinish }) {
   const check = useOnboardingStore((s) => s.checks[member.id]) ?? EMPTY_CHECK
   const updateCheck = useOnboardingStore((s) => s.updateCheck)
   const markPhaseDone = useOnboardingStore((s) => s.markPhaseDone)
+  const persistMemberData = useOnboardingStore((s) => s.persistMemberData)
 
   const finish = () => {
     markPhaseDone(member.id, 'check')
+    persistMemberData(member.id, 'check')
     onFinish()
   }
 

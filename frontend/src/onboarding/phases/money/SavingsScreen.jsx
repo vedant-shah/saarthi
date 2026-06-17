@@ -1,8 +1,9 @@
 import { AnimatePresence, motion } from 'motion/react'
-import { Paperclip, Umbrella } from '@phosphor-icons/react'
+import { Coins, Umbrella } from '@phosphor-icons/react'
 import { useOnboardingStore } from '../../../store/onboardingStore'
 import { ASSET_CLASSES } from './moneyCatalog'
 import { FinRow, AmountControl } from './FinRow'
+import { DocumentImport } from './DocumentImport'
 import { formatINR } from '../../money'
 import { pastelVars } from '../../theme'
 import { Chip } from '../../ui/Chip'
@@ -32,6 +33,10 @@ export function SavingsScreen({ member, onNext }) {
   const update = (key, fields) =>
     setAssets(assets.map((a) => (a.key === key ? { ...a, ...fields } : a)))
 
+  // Remove a single asset row by key — works for chip-selected classes and for
+  // rows imported from a document (whose key may not match any chip class).
+  const removeAsset = (key) => setAssets(assets.filter((a) => a.key !== key))
+
   // The member's stated monthly outflow already carries its own scope: a
   // household payer's number includes the home, others' covers just themselves.
   const spendValue = fin.spend ?? fin.personalSpend ?? null
@@ -54,6 +59,10 @@ export function SavingsScreen({ member, onNext }) {
           {member.isSelf ? 'Yours' : `${member.name}'s`}. Tap what applies, estimates are
           welcome.
         </p>
+      </div>
+
+      <div className="mt-4 shrink-0">
+        <DocumentImport member={member} />
       </div>
 
       <div className="mt-5 flex shrink-0 flex-wrap gap-2">
@@ -80,15 +89,15 @@ export function SavingsScreen({ member, onNext }) {
               return (
                 <FinRow
                   key={asset.key}
-                  Icon={cls.Icon}
+                  Icon={cls?.Icon ?? Coins}
                   label={asset.label}
                   summary={asset.amount != null ? formatINR(asset.amount) : 'roughly?'}
-                  onRemove={() => toggle(cls)}
+                  onRemove={() => removeAsset(asset.key)}
                 >
                   <AmountControl
                     label="Rough current value"
                     value={asset.amount}
-                    defaultValue={cls.defaultAmount}
+                    defaultValue={cls?.defaultAmount ?? 100000}
                     min={10000}
                     max={200000000}
                     onChange={(v) => update(asset.key, { amount: v })}
@@ -127,26 +136,6 @@ export function SavingsScreen({ member, onNext }) {
           )}
         </div>
 
-        <div className="rounded-2xl border border-dashed border-[var(--color-border)] p-3.5">
-          <div className="flex items-start gap-3">
-            <Paperclip size={18} className="mt-0.5 shrink-0 text-[var(--color-ink-muted)]" />
-            <div className="min-w-0">
-              <p className="text-[13px] text-[var(--color-ink-muted)]">
-                Have a CAS? That is the Consolidated Account Statement, one PDF
-                listing all {member.isSelf ? 'your' : 'their'} mutual funds and
-                shares. Uploading it is coming in a later build.
-              </p>
-              <a
-                href="https://www.camsonline.com/Investors/Statements/Consolidated-Account-Statement"
-                target="_blank"
-                rel="noreferrer"
-                className="mt-1 inline-block text-[12px] font-medium text-[var(--accent)] underline underline-offset-2"
-              >
-                Get yours free from CAMS
-              </a>
-            </div>
-          </div>
-        </div>
       </div>
 
       <div className="shrink-0 pb-2 pt-3">

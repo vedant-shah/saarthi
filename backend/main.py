@@ -19,12 +19,13 @@ from datetime import date, datetime, timezone
 from typing import AsyncIterator
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from fastapi import FastAPI, Header, HTTPException, Response
+from fastapi import FastAPI, File, Form, Header, HTTPException, Response, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse
 
 from backend.agent import (
+    document_extract,
     durability,
     onboarding,
     onboarding_persist,
@@ -222,6 +223,74 @@ def onboarding_member_data(
         today=date.today().isoformat(),
     )
     return {"saved": True}
+
+
+@app.post("/api/onboarding/extract-document")
+async def onboarding_extract_document(
+    file: UploadFile = File(...),
+    password: str | None = Form(None),
+    x_member_id: str = Header(..., alias="X-Member-Id"),
+) -> dict:
+    """Read an uploaded statement (CSV/XLSX/PDF) and return the investment
+    holdings the model found, for the client to review before saving. Writes
+    nothing to memory — only confirmed holdings are saved, via member-data.
+
+    An encrypted PDF (e.g. a CAS) replies 422 with a code so the client can ask
+    for the password and retry, rather than failing with a 500."""
+    _assert_member_exists(x_member_id)
+    data = await file.read()
+    try:
+        result = await document_extract.extract_holdings(
+            _provider, filename=file.filename or "", raw_bytes=data, password=password
+        )
+    except document_extract.PdfPasswordRequired as e:
+        code = "pdf_password_wrong" if e.provided else "pdf_password_required"
+        raise HTTPException(status_code=422, detail={"code": code})
+    except document_extract.UnsupportedDocument as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {
+        "holdings": result.holdings,
+        "statement_date": result.statement_date,
+        "document_type": result.document_type,
+    }
+
+
+class PortfolioSnapshotRequest(BaseModel):
+    holdings: list[dict] = []
+    statement_date: str | None = None
+
+
+@app.post("/api/onboarding/portfolio-snapshot")
+def onboarding_portfolio_snapshot(
+    req: PortfolioSnapshotRequest, x_member_id: str = Header(..., alias="X-Member-Id")
+) -> dict:
+    """Save reviewed document holdings as a dated portfolio snapshot, under the
+    document's statement date (or today when absent). The live asset register is
+    updated separately via member-data; this keeps the dated, itemized history."""
+    _assert_member_exists(x_member_id)
+    as_of = onboarding_persist.persist_portfolio_snapshot(
+        x_member_id,
+        req.holdings,
+        statement_date=req.statement_date,
+        today=date.today().isoformat(),
+    )
+    return {"saved": True, "as_of": as_of}
+
+
+class GroupHoldingsRequest(BaseModel):
+    sources: list[dict] = []
+
+
+@app.post("/api/onboarding/group-holdings")
+async def onboarding_group_holdings(
+    req: GroupHoldingsRequest, x_member_id: str = Header(..., alias="X-Member-Id")
+) -> dict:
+    """Merge holdings extracted from several statements into one list, collapsing
+    overlaps (a CAS already consolidates all mutual funds) so the household total
+    is not double-counted. Reads nothing from and writes nothing to memory."""
+    _assert_member_exists(x_member_id)
+    holdings = await document_extract.group_holdings(_provider, sources=req.sources)
+    return {"holdings": holdings}
 
 
 @app.post("/chat")

@@ -13,6 +13,9 @@ class Settings(BaseSettings):
     # extended thinking. Set the budget to 0 to disable thinking.
     summarizer_model: str = "claude-sonnet-4-6"
     summarizer_thinking_budget: int = 4000
+    # Document extraction reads already-extracted text (PDF text via PyMuPDF,
+    # CSV/XLSX rendered to text) and classifies holdings — an easy task, so Haiku.
+    document_model: str = "claude-haiku-4-5-20251001"
     memory_dir: Path = Path("memory")
     skills_dir: Path = Path("skills")
     sessions_dir: Path = Path("sessions")

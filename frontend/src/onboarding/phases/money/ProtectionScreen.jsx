@@ -15,6 +15,7 @@ export function ProtectionScreen({ member }) {
   const fin = useOnboardingStore((s) => s.finances[member.id]) ?? EMPTY_FIN
   const updateFinances = useOnboardingStore((s) => s.updateFinances)
   const markPhaseDone = useOnboardingStore((s) => s.markPhaseDone)
+  const persistMemberData = useOnboardingStore((s) => s.persistMemberData)
   const openHub = useOnboardingStore((s) => s.openHub)
 
   const health = fin.health ?? {}
@@ -23,6 +24,7 @@ export function ProtectionScreen({ member }) {
 
   const finish = () => {
     markPhaseDone(member.id, 'money')
+    persistMemberData(member.id, 'money')
     openHub()
   }
 
