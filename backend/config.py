@@ -23,6 +23,9 @@ class Settings(BaseSettings):
     # Hard cap on tool-use round-trips per turn (Tier 3 agent loop), so a model
     # that keeps asking for tools can never loop forever.
     max_tool_iterations: int = 4
+    # How many recent dated session-summary blocks of conversations.md to preload
+    # into Tier 1. Older summaries stay on disk, reachable via recall_conversation.
+    preloaded_summary_count: int = 5
     enable_cache: bool = False
     cors_origins: list[str] = ["http://localhost:5173"]
     project_root: Path = Path(__file__).resolve().parent.parent

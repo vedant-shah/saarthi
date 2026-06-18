@@ -141,8 +141,10 @@ async def test_max_iterations_synthesizes_terminal_stream_end():
     assert events[-1].stop_reason == "max_tool_iterations"
 
 
-async def test_minimal_turn_is_not_offered_tools():
-    # MINIMAL turns (greetings/chit-chat) stay cheap and tool-free.
+async def test_tools_offered_even_on_minimal_turns():
+    # Tools ride along on every turn, including MINIMAL — so meta/history
+    # questions that carry no financial content (and classify MINIMAL) can still
+    # reach recall. A plain greeting simply won't call them.
     provider = ScriptedProvider([[TextDelta("hey"), _end("end_turn")]])
     log = []
     [
@@ -157,4 +159,4 @@ async def test_minimal_turn_is_not_offered_tools():
             tool_calls_log=log,
         )
     ]
-    assert provider.calls[0]["tools"] is None
+    assert provider.calls[0]["tools"] is not None

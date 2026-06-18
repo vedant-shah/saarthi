@@ -40,9 +40,15 @@ class ToolDispatch:
 
 
 def default_dispatch() -> ToolDispatch:
-    # Imported here, not at module level, to avoid a cycle: read_context imports
+    # Imported here, not at module level, to avoid a cycle: the handlers import
     # ToolResult from this module.
     from backend.agent.tools.read_context import handle_read_context
-    from backend.agent.tools.specs import READ_CONTEXT
+    from backend.agent.tools.recall_conversation import handle_recall_conversation
+    from backend.agent.tools.specs import READ_CONTEXT, RECALL_CONVERSATION
 
-    return ToolDispatch({READ_CONTEXT: handle_read_context})
+    return ToolDispatch(
+        {
+            READ_CONTEXT: handle_read_context,
+            RECALL_CONVERSATION: handle_recall_conversation,
+        }
+    )

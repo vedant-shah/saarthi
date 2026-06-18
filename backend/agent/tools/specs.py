@@ -9,6 +9,7 @@ from __future__ import annotations
 from backend.agent.context_registry import entries_by_policy
 
 READ_CONTEXT = "read_context"
+RECALL_CONVERSATION = "recall_conversation"
 
 
 def _agent_invoked_names() -> list[str]:
@@ -36,5 +37,24 @@ def tool_specs() -> list[dict]:
                 },
                 "required": ["name"],
             },
-        }
+        },
+        {
+            "name": RECALL_CONVERSATION,
+            "description": (
+                "Keyword-search this person's OLDER conversations, further back "
+                "than the recent summaries already in your context. Returns dated "
+                "excerpts of the best-matching past turns. Use when they refer to "
+                "something you discussed a while ago that you don't already have."
+            ),
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "Keywords to search past conversations for.",
+                    }
+                },
+                "required": ["query"],
+            },
+        },
     ]

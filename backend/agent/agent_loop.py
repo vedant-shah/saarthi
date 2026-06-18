@@ -69,9 +69,11 @@ async def run_agent_loop(
     max_iterations: int,
     tool_calls_log: list[dict],
 ) -> AsyncIterator[LoopEvent]:
-    # Tools are only offered on FULL turns; MINIMAL (greetings/chit-chat) stays
-    # cheap and tool-free, matching the assembler's catalog policy.
-    specs = tool_specs() if prompt.context_level == "FULL" else None
+    # Tools ride along on every turn, including MINIMAL. Meta/history questions
+    # ("what did we first talk about") carry no financial content and classify
+    # MINIMAL, but still need recall — so we never gate tools by level. The model
+    # only calls a tool when it needs one; a plain greeting won't.
+    specs = tool_specs()
     working_messages = list(prompt.messages)
 
     for _iteration in range(max_iterations):

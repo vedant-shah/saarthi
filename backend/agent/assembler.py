@@ -104,7 +104,29 @@ def _build_catalog() -> str:
     for entry in memory_entries:
         lines.append(f"- {entry.name}: {entry.description}")
 
+    lines.append("")
+    lines.append(
+        "OLDER CHATS — call recall_conversation(query) to keyword-search past "
+        "conversations further back than the recent summaries above."
+    )
+
     return "\n".join(lines)
+
+
+def _tail_summary_blocks(body: str, count: int) -> str:
+    """Keep only the last `count` dated '## ' blocks of a conversations file.
+
+    Session summaries accumulate one block per session forever; preloading all of
+    them would bloat Tier 1 at scale. This truncation is read-side only — the
+    full file stays on disk and older summaries remain reachable on demand via
+    recall_conversation."""
+    if count <= 0:
+        return body
+    lines = body.splitlines()
+    starts = [i for i, ln in enumerate(lines) if ln.startswith("## ")]
+    if len(starts) <= count:
+        return body
+    return "\n".join(lines[starts[-count]:]).strip()
 
 
 def _build_full_prompt(
@@ -145,6 +167,10 @@ def _build_full_prompt(
             continue
 
         body = strip_frontmatter(content)
+        # Tier 1 stays bounded as history grows: preload only the most recent
+        # session summaries; older ones are reachable via recall_conversation.
+        if entry.name == "member.conversations":
+            body = _tail_summary_blocks(body, settings.preloaded_summary_count)
         # Flag long-stale current-value figures so the advisor knows they may be
         # outdated (read-side only; stored memory is untouched).
         if entry.mode == "current-value":
