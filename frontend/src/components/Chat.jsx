@@ -210,7 +210,7 @@ export function Chat() {
               placeholder="Message"
               disabled={streaming && messages.length === 0}
               rows={1}
-              className="flex-1 resize-none bg-transparent outline-none text-[15px] leading-[1.35] py-1.5 placeholder:text-[var(--color-ink-muted)] max-h-[120px] text-[var(--color-ink)]"
+              className="flex-1 resize-none bg-transparent outline-none text-[16px] leading-[1.35] py-1.5 placeholder:text-[var(--color-ink-muted)] max-h-[120px] text-[var(--color-ink)]"
             />
             <button
               onClick={handleSubmit}

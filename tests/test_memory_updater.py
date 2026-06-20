@@ -46,6 +46,28 @@ def test_summarizer_prompt_demands_tool_call():
     assert "always call the `summarize` tool" in sys
 
 
+async def test_member_notes_reach_extractor(tmp_memory, fake_provider):
+    # The narrative onboarding note must reach the extractor too, not just the
+    # live agent — otherwise extraction repeats mistakes the note would prevent
+    # (e.g. mislabeling an f&f settlement as a joining bonus).
+    from backend.agent.writers import write_note
+
+    write_note(
+        "vedant",
+        note="my 61k was the f&f from oracle; joining bonus is ~1L separately",
+        date="2026-06-19",
+        dedup_id="noteid",
+    )
+    fake_provider.payload = {"summary_3_lines": ["hi"]}
+    memory_updater._provider = fake_provider
+    _write_transcript("vedant", "noteseen")
+
+    await close_session("vedant", "noteseen")
+
+    system_text = "\n".join(b.text for b in fake_provider.last_kwargs["system"])
+    assert "f&f from oracle" in system_text
+
+
 async def test_happy_path_writes_summary_and_recommendation(tmp_memory, fake_provider):
     fake_provider.payload = {
         "summary_3_lines": ["talked surplus", "park 5L", "liquid fund"],

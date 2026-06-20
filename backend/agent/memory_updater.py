@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import json
 import logging
 from datetime import date
 
@@ -66,6 +67,11 @@ def _existing_memory_for(member: str) -> str:
     markers intact, so the extractor sees what already exists instead of running
     blind (M3) — and, downstream, can target those ids with edit-ops (M4).
 
+    Narrative files (the free-text notes the member wrote) are included too, as
+    read-only background: without them the extractor can't see clarifications
+    that only live in notes (e.g. "the 61k was an f&f, not the joining bonus")
+    and re-derives them wrong. They carry no id markers, so they're never targeted.
+
     Resolved via `settings.memory_dir` — the SAME base the writers use — so the
     extractor reads exactly the tree where writes land. Frontmatter is stripped
     (it carries no facts); the id comments live in the body and survive, which is
@@ -73,7 +79,7 @@ def _existing_memory_for(member: str) -> str:
     base = settings.resolve(settings.memory_dir) / "members" / member
     sections: list[str] = []
     for entry in REGISTRY:
-        if entry.scope != "member" or entry.mode != "current-value":
+        if entry.scope != "member" or entry.mode not in ("current-value", "narrative"):
             continue
         fname = entry.path_template.rsplit("/", 1)[-1]
         content = read_markdown_or_none(base / fname)
@@ -322,6 +328,37 @@ _GOAL_LIFECYCLE = {
     "complete": "ACHIEVED",
     "cancel": "DROPPED",
 }
+
+
+def _conversation_date(content: str) -> str:
+    """The calendar date the conversation happened on, from the first turn's
+    timestamp. Relative-time phrases ('yesterday') are resolved against THIS, not
+    the processing date, which can be days later when the catch-up scan runs."""
+    for line in content.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            rec = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        ts = rec.get("ts") if isinstance(rec, dict) else None
+        if ts:
+            return str(ts)[:10]
+    return date.today().isoformat()
+
+
+def _date_instruction(conv_date: str) -> str:
+    """Tell the summarizer the conversation's date and to absolutize all
+    relative time, so 'yesterday' never lands in memory as a relative word."""
+    return (
+        f"This conversation took place on {conv_date}. Resolve EVERY relative time "
+        f"reference to an absolute YYYY-MM-DD date in everything you output "
+        f"(summary lines, life events, goals, all text). 'today' is {conv_date}; "
+        f"'yesterday' is the day before; convert 'last week', 'next month', 'in a "
+        f"couple of weeks', and the like the same way. Never leave a relative word "
+        f"like 'yesterday', 'today', or 'last week' in your output."
+    )
 
 
 def _dispatch(member: str, session_id: str, raw: dict, today: str) -> bool:
@@ -579,7 +616,11 @@ async def close_session(member: str, session_id: str) -> None:
             )
             return
 
-        system_blocks = [SystemBlock(text=_SUMMARIZER_SYSTEM)]
+        conv_date = _conversation_date(content)
+        system_blocks = [
+            SystemBlock(text=_SUMMARIZER_SYSTEM),
+            SystemBlock(text=_date_instruction(conv_date)),
+        ]
         existing = _existing_memory_for(member)
         if existing:
             system_blocks.append(
@@ -616,7 +657,9 @@ async def close_session(member: str, session_id: str) -> None:
             )
             return
 
-        today = date.today().isoformat()
+        # Write facts dated to when the conversation happened (and what the
+        # summarizer was told 'today' is), not the later processing date.
+        today = conv_date
         all_ok = _dispatch(member, session_id, raw, today)
 
         # After staging this session's cross-member observations, promote any
