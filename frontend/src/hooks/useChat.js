@@ -86,7 +86,10 @@ export function useChat() {
 
   const send = useCallback(async (text) => {
     const store = useChatStore.getState()
-    const { activeMember, setError, startTurn, endTurn } = store
+    const { activeMember, setError, startTurn, endTurn, clearReplyTo } = store
+    // Capture the swipe-to-reply target before we clear it; send it so the model
+    // knows which message this turn is replying to.
+    const reply = store.replyTo
 
     // If streaming got stuck (e.g. after HMR), reset before starting a new turn.
     if (store.streaming) {
@@ -99,7 +102,8 @@ export function useChat() {
     }
     if (!text.trim()) return
 
-    startTurn(text)
+    startTurn(text, reply)
+    clearReplyTo()
 
     try {
       const res = await fetch(ENDPOINTS.chat, {
@@ -108,7 +112,11 @@ export function useChat() {
           'Content-Type': 'application/json',
           'X-Member-Id': activeMember,
         },
-        body: JSON.stringify({ message: text }),
+        body: JSON.stringify({
+          message: text,
+          quoted_text: reply?.text ?? null,
+          quoted_role: reply?.role ?? null,
+        }),
       })
 
       if (!res.ok || !res.body) {

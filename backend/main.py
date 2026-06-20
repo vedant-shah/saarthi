@@ -101,6 +101,10 @@ _provider = get_provider()
 
 class ChatRequest(BaseModel):
     message: str
+    # Swipe-to-reply: the message being replied to and who said it ("assistant"
+    # = the advisor, else the member's own). Optional; absent on normal turns.
+    quoted_text: str | None = None
+    quoted_role: str | None = None
 
 
 class SessionCloseRequest(BaseModel):
@@ -308,6 +312,8 @@ async def chat(
             provider=_provider,
             member=x_member_id,
             user_message=req.message,
+            quoted_text=req.quoted_text,
+            quoted_role=req.quoted_role or "",
             memory_root=settings.resolve(settings.memory_dir),
             skills_root=settings.resolve(settings.skills_dir),
             max_tokens=settings.max_response_tokens,

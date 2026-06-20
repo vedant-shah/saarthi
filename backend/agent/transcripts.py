@@ -62,6 +62,11 @@ class TranscriptRecord:
     cost_usd: float = 0.0
     stop_reason: str = ""
     error: str | None = None
+    # Swipe-to-reply: the message the user was replying to, and who said it
+    # ("assistant" = the advisor, else their own). Recorded so the audit and the
+    # extractor can see exactly what a reply was responding to.
+    quoted_text: str | None = None
+    quoted_role: str = ""
 
 
 def now_iso() -> str:

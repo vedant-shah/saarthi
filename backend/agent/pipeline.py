@@ -59,6 +59,18 @@ class TurnError:
 TurnEvent = TurnToken | TurnDone | TurnError
 
 
+def _with_quote(message: str, quoted_text: str | None, quoted_role: str) -> str:
+    """Prefix the user's message with the message they swipe-replied to, so the
+    model knows exactly what they're referring to. Role-attributed: replying to
+    the advisor's message ('assistant') reads differently from replying to their
+    own. Empty quote = the message unchanged."""
+    if not quoted_text:
+        return message
+    quoted = quoted_text.strip()
+    whose = "your earlier message" if quoted_role == "assistant" else "their own earlier message"
+    return f'[user is replying to {whose}: "{quoted}"]\n{message}'
+
+
 async def run_chat_turn(
     *,
     provider: LLMProvider,
@@ -67,6 +79,8 @@ async def run_chat_turn(
     memory_root: Path,
     skills_root: Path,
     max_tokens: int,
+    quoted_text: str | None = None,
+    quoted_role: str = "",
 ) -> AsyncIterator[TurnEvent]:
     try:
         now = time.monotonic()
@@ -124,6 +138,8 @@ async def run_chat_turn(
                     cost_usd=last_end.cost_usd if last_end else 0.0,
                     stop_reason=last_end.stop_reason if last_end else "",
                     error=error,
+                    quoted_text=quoted_text,
+                    quoted_role=quoted_role,
                 )
             )
 
@@ -132,7 +148,9 @@ async def run_chat_turn(
                 active_member=member,
                 classifier_output=classification.output,
                 in_session_history=snapshot,
-                user_message=user_message,
+                # The model sees the quote inline so it knows the referent; the
+                # raw message (no prefix) is what we store in history below.
+                user_message=_with_quote(user_message, quoted_text, quoted_role),
                 memory_root=memory_root,
                 skills_root=skills_root,
             )

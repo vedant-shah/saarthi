@@ -1,4 +1,5 @@
 import { useRef, useEffect, useState } from 'react'
+import { motion } from 'motion/react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { useChatStore } from '../store/chatStore'
@@ -72,6 +73,9 @@ export function Chat() {
   const error = useChatStore((s) => s.error)
   const setError = useChatStore((s) => s.setError)
   const activeMember = useChatStore((s) => s.activeMember)
+  const replyTo = useChatStore((s) => s.replyTo)
+  const setReplyTo = useChatStore((s) => s.setReplyTo)
+  const clearReplyTo = useChatStore((s) => s.clearReplyTo)
   const { send } = useChat()
   const [text, setText] = useState('')
   // Picked once per mount so it stays put while typing, not on every keystroke.
@@ -151,35 +155,55 @@ export function Chat() {
             >
               {chunks.map((chunk, b) => {
                 const lastBubble = b === chunks.length - 1
+                const canReply = !isEmptyAssistant && !!chunk
                 return (
-                  <div
+                  // Swipe right past the threshold to reply to THIS bubble. drag
+                  // is x-only and snaps back; touchAction pan-y keeps the list
+                  // vertically scrollable.
+                  <motion.div
                     key={b}
-                    className={[
-                      'max-w-[78%] px-3.5 py-2 text-[15px] leading-[1.35]',
-                      b === 0 ? '' : 'mt-0.5',
-                      bubbleRadius(
-                        msg.role,
-                        isFirstInGroup && b === 0,
-                        lastBubble && isLastInGroup,
-                      ),
-                      isUser
-                        ? 'bg-[var(--color-imessage-blue)] text-white origin-bottom-right animate-bubble-in-right'
-                        : 'bg-[var(--color-bubble-other)] text-[var(--color-ink)] origin-bottom-left animate-bubble-in-left',
-                    ].join(' ')}
-                    style={{ willChange: 'transform, opacity' }}
+                    drag={canReply ? 'x' : false}
+                    dragConstraints={{ left: 0, right: 0 }}
+                    dragElastic={{ left: 0, right: 0.5 }}
+                    dragSnapToOrigin
+                    onDragEnd={(_e, info) => {
+                      if (info.offset.x > 56) setReplyTo(msg.role, chunk)
+                    }}
+                    className={`max-w-[78%] ${b === 0 ? '' : 'mt-0.5'}`}
+                    style={{ touchAction: 'pan-y' }}
                   >
-                    {isEmptyAssistant ? (
-                      <TypingDots />
-                    ) : isUser ? (
-                      <p className="whitespace-pre-wrap break-words">{chunk}</p>
-                    ) : (
-                      <div className="prose prose-sm max-w-none prose-p:my-1 prose-p:leading-snug prose-ul:my-1 prose-ol:my-1 prose-pre:my-2">
-                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                          {chunk}
-                        </ReactMarkdown>
-                      </div>
-                    )}
-                  </div>
+                    <div
+                      className={[
+                        'px-3.5 py-2 text-[15px] leading-[1.35]',
+                        bubbleRadius(
+                          msg.role,
+                          isFirstInGroup && b === 0,
+                          lastBubble && isLastInGroup,
+                        ),
+                        isUser
+                          ? 'bg-[var(--color-imessage-blue)] text-white origin-bottom-right animate-bubble-in-right'
+                          : 'bg-[var(--color-bubble-other)] text-[var(--color-ink)] origin-bottom-left animate-bubble-in-left',
+                      ].join(' ')}
+                      style={{ willChange: 'transform, opacity' }}
+                    >
+                      {isUser && b === 0 && msg.replyTo?.text && (
+                        <div className="mb-1 border-l-2 border-white/40 pl-2 text-[12px] leading-snug text-white/70 line-clamp-2">
+                          {msg.replyTo.text}
+                        </div>
+                      )}
+                      {isEmptyAssistant ? (
+                        <TypingDots />
+                      ) : isUser ? (
+                        <p className="whitespace-pre-wrap break-words">{chunk}</p>
+                      ) : (
+                        <div className="prose prose-sm max-w-none prose-p:my-1 prose-p:leading-snug prose-ul:my-1 prose-ol:my-1 prose-pre:my-2">
+                          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                            {chunk}
+                          </ReactMarkdown>
+                        </div>
+                      )}
+                    </div>
+                  </motion.div>
                 )
               })}
             </div>
@@ -195,6 +219,23 @@ export function Chat() {
               onClick={() => setError(null)}
               className="ml-3 text-red-400 hover:text-red-200"
               aria-label="Dismiss error"
+            >
+              ✕
+            </button>
+          </div>
+        )}
+        {replyTo && (
+          <div className="mb-2 flex items-center justify-between rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] px-3.5 py-2 animate-fade-in">
+            <div className="min-w-0 border-l-2 border-[var(--color-imessage-blue)] pl-2.5">
+              <div className="text-[11px] font-medium text-[var(--color-ink-muted)]">
+                Replying to {replyTo.role === 'assistant' ? 'advisor' : 'yourself'}
+              </div>
+              <div className="truncate text-[13px] text-[var(--color-ink)]">{replyTo.text}</div>
+            </div>
+            <button
+              onClick={clearReplyTo}
+              aria-label="Cancel reply"
+              className="ml-3 shrink-0 text-[var(--color-ink-muted)] hover:text-[var(--color-ink)]"
             >
               ✕
             </button>

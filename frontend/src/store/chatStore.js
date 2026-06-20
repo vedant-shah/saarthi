@@ -31,8 +31,13 @@ export const useChatStore = create((set, get) => ({
   sessionId: null,
   members: [],
   error: null,
+  // Swipe-to-reply target: { role, text } of the message being replied to, or null.
+  replyTo: null,
 
   setMembers: (list) => set({ members: list }),
+
+  setReplyTo: (role, text) => set({ replyTo: { role, text } }),
+  clearReplyTo: () => set({ replyTo: null }),
 
   setActiveMember: (id) => {
     writeStoredMember(id)
@@ -43,9 +48,9 @@ export const useChatStore = create((set, get) => ({
 
   setError: (msg) => set({ error: msg }),
 
-  startTurn: (userText) => {
+  startTurn: (userText, replyTo = null) => {
     const ts = Date.now()
-    const userMsg = { id: newMessageId(), role: 'user', content: userText, ts }
+    const userMsg = { id: newMessageId(), role: 'user', content: userText, ts, replyTo }
     const assistantMsg = { id: newMessageId(), role: 'assistant', content: '', ts }
     set((s) => ({
       messages: [...s.messages, userMsg, assistantMsg],
