@@ -22,6 +22,7 @@ from backend.agent.current_value import (
     append_dated_snapshot,
     append_staging,
     key_for_id,
+    strip_superseded,
     upsert_current_value,
 )
 
@@ -453,3 +454,33 @@ def test_key_for_id_resolves_superseded_block():
     # a superseded block keeps its marker, so the id still resolves to its key
     content = "## expense.total\n- value: 25000\n- status: SUPERSEDED\n<!-- id:exp1 -->\n"
     assert key_for_id(content, "exp1") == "expense.total"
+
+
+# ---------------------------------------------------------------------------
+# strip_superseded — read-side filter (history stays on disk, prompt sees CURRENT)
+# ---------------------------------------------------------------------------
+
+def test_strip_superseded_drops_superseded_keeps_current():
+    content = (
+        "## A trip\n- target: 200000\n- status: SUPERSEDED\n<!-- id:g1 -->\n\n"
+        "## A trip\n- target: 250000\n- status: CURRENT\n<!-- id:g2 -->\n"
+    )
+    out = strip_superseded(content)
+    assert "id:g2" in out and "target: 250000" in out
+    assert "id:g1" not in out and "SUPERSEDED" not in out
+
+
+def test_strip_superseded_keeps_preamble_and_statusless_blocks():
+    # Frontmatter/preamble and blocks without a status line (e.g. dated snapshots)
+    # are untouched — only explicitly SUPERSEDED blocks are removed.
+    content = (
+        "intro text\n\n"
+        "## as of 2026-06-01\n- nps: 50000\n<!-- id:s1 -->\n\n"
+        "## income.salary\n- value: 120000\n- status: CURRENT\n<!-- id:i1 -->\n"
+    )
+    out = strip_superseded(content)
+    assert out == content
+
+
+def test_strip_superseded_empty_is_empty():
+    assert strip_superseded("") == ""

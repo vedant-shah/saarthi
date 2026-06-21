@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 
 import { ENDPOINTS } from '../lib/api'
 import { useChatStore } from '../store/chatStore'
@@ -48,6 +48,8 @@ function dispatchEvent(ev, fallbackSessionId) {
 
 export function useChat() {
   const activeMember = useChatStore((s) => s.activeMember)
+  // Holds the in-flight chat request so `stop` can abort it mid-stream.
+  const abortRef = useRef(null)
 
   // Hydrate chat from backend whenever the active member changes (mount or
   // switch). The setTimeout(0) defers the fetch by one tick so that React's
@@ -105,6 +107,9 @@ export function useChat() {
     startTurn(text, reply)
     clearReplyTo()
 
+    const controller = new AbortController()
+    abortRef.current = controller
+
     try {
       const res = await fetch(ENDPOINTS.chat, {
         method: 'POST',
@@ -117,6 +122,7 @@ export function useChat() {
           quoted_text: reply?.text ?? null,
           quoted_role: reply?.role ?? null,
         }),
+        signal: controller.signal,
       })
 
       if (!res.ok || !res.body) {
@@ -157,9 +163,22 @@ export function useChat() {
         endTurn(useChatStore.getState().sessionId)
       }
     } catch (err) {
+      // A user-triggered stop aborts the fetch; `stop` already reset the UI, so
+      // swallow it rather than flashing an error.
+      if (err?.name === 'AbortError') return
       setError(err?.message ?? String(err))
       endTurn(useChatStore.getState().sessionId)
+    } finally {
+      abortRef.current = null
     }
+  }, [])
+
+  // Stop the in-flight turn: abort the request, then pull the sent message back
+  // into the input for editing (the store drops the placeholder + user message
+  // and returns its text + reply target).
+  const stop = useCallback(() => {
+    abortRef.current?.abort()
+    return useChatStore.getState().stopTurn()
   }, [])
 
   // Manual session close. NOT wired to `beforeunload`, that event fires on
@@ -176,5 +195,5 @@ export function useChat() {
     navigator.sendBeacon(ENDPOINTS.sessionClose, blob)
   }, [])
 
-  return { send, closeSession }
+  return { send, stop, closeSession }
 }

@@ -87,6 +87,21 @@ def key_for_id(content: str, target_id: str) -> str | None:
     return None
 
 
+def strip_superseded(content: str) -> str:
+    """Drop SUPERSEDED blocks for read-side display, keeping CURRENT and
+    status-less blocks (preamble, dated snapshots). Superseded values are kept on
+    disk as history but should not clutter the assembled prompt — the agent only
+    needs the live value, the same way conversation summaries are tail-bounded."""
+    if not content:
+        return content
+    kept = [
+        part
+        for part in _split_blocks(content)
+        if not (part.startswith("## ") and "- status: SUPERSEDED" in part)
+    ]
+    return "".join(kept)
+
+
 def _field(block: str, field: str) -> str:
     m = re.search(rf"(?m)^- {re.escape(field)}: (.*)$", block)
     return m.group(1).strip() if m else ""

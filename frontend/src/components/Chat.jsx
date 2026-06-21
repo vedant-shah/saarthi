@@ -25,6 +25,14 @@ function SendArrow() {
   )
 }
 
+function StopIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+      <rect x="3" y="3" width="8" height="8" rx="1.5" fill="currentColor" />
+    </svg>
+  )
+}
+
 function TypingDots() {
   return (
     <span className="inline-flex items-end gap-1 py-1.5">
@@ -76,7 +84,7 @@ export function Chat() {
   const replyTo = useChatStore((s) => s.replyTo)
   const setReplyTo = useChatStore((s) => s.setReplyTo)
   const clearReplyTo = useChatStore((s) => s.clearReplyTo)
-  const { send } = useChat()
+  const { send, stop } = useChat()
   const [text, setText] = useState('')
   // Picked once per mount so it stays put while typing, not on every keystroke.
   const [tagline] = useState(
@@ -105,11 +113,13 @@ export function Chat() {
     send(trimmed)
   }
 
-  function handleKeyDown(e) {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault()
-      handleSubmit()
-    }
+  // Stop the in-flight turn and bring the sent message back into the input to
+  // edit and resend. Enter inserts a newline (no submit-on-Enter); send is the
+  // button only — important on phones where the on-screen Enter key would
+  // otherwise fire off a half-written message.
+  function handleStop() {
+    const { text: restored } = stop()
+    setText(restored)
   }
 
   const canSend = text.trim().length > 0 && !streaming
@@ -247,26 +257,35 @@ export function Chat() {
               ref={textareaRef}
               value={text}
               onChange={(e) => setText(e.target.value)}
-              onKeyDown={handleKeyDown}
               placeholder="Message"
               disabled={streaming && messages.length === 0}
               rows={1}
               className="flex-1 resize-none bg-transparent outline-none text-[16px] leading-[1.35] py-1.5 placeholder:text-[var(--color-ink-muted)] max-h-[120px] text-[var(--color-ink)]"
             />
-            <button
-              onClick={handleSubmit}
-              disabled={!canSend}
-              aria-label="Send"
-              className={[
-                'press-shrink shrink-0 ml-1 mb-0.5 grid place-items-center h-7 w-7 rounded-full',
-                canSend
-                  ? 'bg-[var(--color-imessage-blue)] text-white hover:bg-[var(--color-imessage-blue-press)]'
-                  : 'bg-white/10 text-white/30 cursor-not-allowed',
-                'transition-colors duration-150',
-              ].join(' ')}
-            >
-              <SendArrow />
-            </button>
+            {streaming ? (
+              <button
+                onClick={handleStop}
+                aria-label="Stop"
+                className="press-shrink shrink-0 ml-1 mb-0.5 grid place-items-center h-7 w-7 rounded-full bg-[var(--color-imessage-blue)] text-white hover:bg-[var(--color-imessage-blue-press)] transition-colors duration-150"
+              >
+                <StopIcon />
+              </button>
+            ) : (
+              <button
+                onClick={handleSubmit}
+                disabled={!canSend}
+                aria-label="Send"
+                className={[
+                  'press-shrink shrink-0 ml-1 mb-0.5 grid place-items-center h-7 w-7 rounded-full',
+                  canSend
+                    ? 'bg-[var(--color-imessage-blue)] text-white hover:bg-[var(--color-imessage-blue-press)]'
+                    : 'bg-white/10 text-white/30 cursor-not-allowed',
+                  'transition-colors duration-150',
+                ].join(' ')}
+              >
+                <SendArrow />
+              </button>
+            )}
           </div>
         </div>
       </div>

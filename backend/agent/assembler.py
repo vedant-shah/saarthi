@@ -7,6 +7,7 @@ from typing import Literal, TypedDict
 
 from backend.agent.aggregator import read_family_name
 from backend.agent.context_registry import entries_by_policy, resolve_path
+from backend.agent.current_value import strip_superseded
 from backend.agent.llm_provider import SystemBlock
 from backend.agent.staleness import annotate_stale_blocks
 from backend.config import settings
@@ -131,9 +132,11 @@ def _build_full_prompt(
         # session summaries; older ones are reachable via recall_conversation.
         if entry.name == "member.conversations":
             body = _tail_summary_blocks(body, settings.preloaded_summary_count)
-        # Flag long-stale current-value figures so the advisor knows they may be
-        # outdated (read-side only; stored memory is untouched).
+        # Show only live values: drop SUPERSEDED history (kept on disk) and flag
+        # long-stale CURRENT figures as possibly outdated. Both are read-side
+        # only; stored memory is untouched.
         if entry.mode == "current-value":
+            body = strip_superseded(body)
             body = annotate_stale_blocks(body, today=today)
         header = _SECTION_HEADERS.get(entry.name, entry.name)
         if entry.scope == "member":
