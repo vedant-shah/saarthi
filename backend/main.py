@@ -38,6 +38,7 @@ from backend.agent.memory_updater import close_session
 from backend.agent.pipeline import TurnDone, TurnError, TurnToken
 from backend.config import settings
 from backend.logging_setup import configure_logging
+from backend.mdns import MdnsAdvertiser
 from backend.utils import markdown_io
 
 _log_file = configure_logging()
@@ -62,6 +63,7 @@ async def lifespan(app: FastAPI):
     sched = AsyncIOScheduler()
     sched.add_job(_sweep_idle, "interval", seconds=_IDLE_SWEEP_SECONDS)
     sched.start()
+    advertiser = await _start_mdns()
     # Fire-and-forget startup catch-up scan so sessions orphaned by a prior
     # shutdown are summarized quickly, without blocking the first /health check.
     _startup_task: asyncio.Task = asyncio.create_task(_startup_scan())
@@ -73,7 +75,24 @@ async def lifespan(app: FastAPI):
             await _startup_task
         except (asyncio.CancelledError, Exception):
             pass
+        if advertiser is not None:
+            await asyncio.to_thread(advertiser.stop)
         sched.shutdown(wait=False)
+
+
+async def _start_mdns() -> MdnsAdvertiser | None:
+    """Advertise the app's Bonjour name so LAN devices can reach it by name.
+    Registration blocks (it probes for name conflicts), so it runs off the event
+    loop. Best effort: a network hiccup must never stop the app from booting."""
+    if not settings.mdns_enabled:
+        return None
+    advertiser = MdnsAdvertiser(settings.mdns_name, settings.mdns_port)
+    try:
+        ok = await asyncio.to_thread(advertiser.start)
+    except Exception:
+        logger.exception("mDNS advertise failed; continuing without it")
+        return None
+    return advertiser if ok else None
 
 
 async def _startup_scan() -> None:

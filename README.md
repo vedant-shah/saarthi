@@ -36,6 +36,11 @@ It runs on your own machine. Your financial data never leaves it.
 
 *(Saarthi is Sanskrit for the charioteer who counsels the warrior: it steers and advises, but you hold the reins.)*
 
+<p align="center">
+  <img src="assets/readme-illustrations/01-trust-bridge.png" alt="One person hosts Saarthi; the whole family just talks to it" width="760">
+</p>
+<p align="center"><em>One person hosts it. The whole family just talks to it.</em></p>
+
 ---
 
 ## See it in action
@@ -84,6 +89,11 @@ One guide, shared by the whole family, meeting each person at their level.
 ---
 
 ## What works today
+
+<p align="center">
+  <img src="assets/readme-illustrations/04-per-member-memory.png" alt="Every family member modeled separately, kept up to date, never mixed together" width="720">
+</p>
+<p align="center"><em>Every member modeled separately, kept current, never mixed.</em></p>
 
 - **Per-member memory.** Each family member is modeled separately, and cross-member privacy is enforced in the writer layer at the code level, not as a polite instruction to the model.
 - **Memory you can read with your own eyes.** Everything it knows lives in plain markdown on your disk. No database, no vector store. It loads memory in tiers the way a person recalls things: facts always in mind, details pulled up when relevant, things looked up mid-thought.
@@ -140,6 +150,11 @@ One guide, shared by the whole family, meeting each person at their level.
 
 **The family is the unit, not the individual.** Most finance apps give *you* a dashboard. Saarthi treats your family as one entity with multiple members, so it can answer *"can Mom afford to retire in three years?"* using her portfolio, the household emergency fund, your contribution capacity, and Dad's pension, all at once.
 
+<p align="center">
+  <img src="assets/readme-illustrations/02-map-not-copy.png" alt="An always-loaded index points to each member; it pulls only what a decision needs" width="760">
+</p>
+<p align="center"><em>An always-loaded index points to each member. It pulls only what a decision needs, instead of copying everyone into one pile.</em></p>
+
 **Privacy enforced in code, not by request.** When Mom uses it, her conversation stays hers; the family head sees a *summary*, not her transcript. If her session ever tries to write into Dad's private memory, the writer layer rejects it at the code level.
 
 **We teach, we do not sell.** It explains the "why" behind every suggestion, recommends categories rather than named products, teaches concepts as they come up, and says "I don't know" honestly on things like estate planning or market timing, deferring to a qualified professional. Staying at the level of categories and frameworks also keeps it outside the regulatory definition of "investment advice", but that is a consequence of the philosophy, not the reason for it.
@@ -193,9 +208,26 @@ Prefer no Docker? `pip install -r requirements.txt` + `uvicorn backend.main:app 
 
 ## The whole family, on one machine
 
-Saarthi runs on a single machine in your home, but everyone can use it. Start it on your laptop, and anyone on the same Wi-Fi can open it from their own phone at your machine's address on the network (something like `http://192.168.1.42:5173`). The dev server already listens on your local network, so there is nothing extra to set up.
+Saarthi runs on a single machine in your home, but everyone can use it. Each person taps who they are and talks to Saarthi in their own voice, with their own private memory. The traffic stays on your home network, and nothing is sent to the cloud.
 
-Each person taps who they are and talks to Saarthi in their own voice, with their own private memory. The traffic stays on your home network, and nothing is sent to the cloud.
+Family members reach it at **`http://saarthi.local:5173`** from any phone or laptop on the same Wi-Fi. No IP to remember, nothing to install on their devices.
+
+How that name gets published depends on how you run Saarthi:
+
+- **Run directly** (the no-Docker path): the app announces `saarthi.local` itself on startup. Nothing extra to do.
+- **Run with Docker:** the container cannot reach your home network, so publish the name from the host instead. Alongside `docker compose up`, open a second terminal and run:
+  ```bash
+  pip install zeroconf            # one time, on your machine
+  python -m scripts.advertise     # keep running while the family uses the app
+  ```
+  `Ctrl+C` stops it and withdraws the name.
+
+Two honest caveats. Android phones resolve `.local` names unreliably, and the name only works on your home Wi-Fi. If a device will not resolve `saarthi.local`, fall back to the machine's network IP directly (something like `http://192.168.1.42:5173`). For access from anywhere, including away from home, [Tailscale](https://tailscale.com) gives every device a stable address that always works.
+
+<p align="center">
+  <img src="assets/readme-illustrations/03-data-stays-home.png" alt="Self-hosted: your family's financial data stays on your machine, never a company's cloud" width="760">
+</p>
+<p align="center"><em>Self-hosted: your family's financial data stays on your machine, never a company's cloud.</em></p>
 
 ---
 

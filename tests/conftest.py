@@ -67,6 +67,14 @@ def _reset_sessions_state():
     yield
 
 
+@pytest.fixture(autouse=True)
+def _disable_mdns(monkeypatch):
+    """Never broadcast a Bonjour name during tests. The endpoint tests run the
+    app lifespan via TestClient, and real mDNS registration is slow and would
+    collide with a running dev server. Production keeps it on by default."""
+    monkeypatch.setattr(settings, "mdns_enabled", False)
+
+
 @pytest.fixture
 def fake_provider() -> FakeProvider:
     return FakeProvider()

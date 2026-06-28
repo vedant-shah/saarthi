@@ -33,6 +33,13 @@ class Settings(BaseSettings):
     preloaded_summary_count: int = 5
     enable_cache: bool = False
     cors_origins: list[str] = ["http://localhost:5173"]
+    # Advertise the app on the LAN under its own Bonjour/mDNS name so family
+    # devices reach it at http://<mdns_name>.local:<mdns_port> without an IP or
+    # renaming the host machine. mdns_port is the family-facing port (the Vite
+    # dev server), since that is the URL people actually open.
+    mdns_enabled: bool = True
+    mdns_name: str = "saarthi"
+    mdns_port: int = 5173
     project_root: Path = Path(__file__).resolve().parent.parent
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8", "extra": "ignore"}
