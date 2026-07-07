@@ -1,0 +1,567 @@
+<!doctype html>
+<html lang="en" data-resolution="landscape">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Saarthi — launch (brutalist)</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Space+Mono:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      :root {
+        --bg: #0a0a0a;
+        --ink: #f2f0e9;
+        --ink-dim: #7f7d76;
+        --mint: oklch(85% 0.08 160);
+        --mint-ink: #0a0a0a;
+        --frame: rgba(242, 240, 233, 0.16);
+      }
+
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: var(--bg);
+        color: var(--ink);
+        font-family: "Space Grotesk", sans-serif;
+      }
+
+      #saarthi {
+        position: relative;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+      }
+
+      .mono {
+        font-family: "Space Mono", monospace;
+        text-transform: uppercase;
+        letter-spacing: 3px;
+      }
+
+      /* ---------- persistent brutalist chrome ---------- */
+      #chrome {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        z-index: 50;
+      }
+      #chrome .border {
+        position: absolute;
+        inset: 40px;
+        border: 2px solid var(--frame);
+      }
+      #chrome .lbl {
+        position: absolute;
+        font-family: "Space Mono", monospace;
+        text-transform: uppercase;
+        letter-spacing: 3px;
+        font-size: 22px;
+        color: var(--ink-dim);
+      }
+      #chrome .tl {
+        top: 58px;
+        left: 64px;
+        color: var(--ink);
+      }
+      #chrome .tr {
+        top: 58px;
+        right: 64px;
+      }
+      #chrome .bl {
+        bottom: 58px;
+        left: 64px;
+      }
+      #chrome .br {
+        bottom: 58px;
+        right: 64px;
+        color: var(--mint);
+      }
+
+      .scene {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        padding: 0 150px;
+        opacity: 0;
+        box-sizing: border-box;
+      }
+
+      /* ---------- Scene 1: hook ---------- */
+      #hook {
+        gap: 30px;
+        align-items: flex-start;
+      }
+      #hook .idx {
+        font-size: 24px;
+        color: var(--mint);
+      }
+      #hook .l1 {
+        font-size: 118px;
+        font-weight: 700;
+        text-transform: uppercase;
+        line-height: 0.98;
+        letter-spacing: -2px;
+        max-width: 1450px;
+        opacity: 0;
+      }
+      #hook .block {
+        display: inline-block;
+        background: var(--mint);
+        color: var(--mint-ink);
+        font-size: 70px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: -1px;
+        padding: 10px 28px 16px 28px;
+        opacity: 0;
+      }
+
+      /* ---------- Scene 2: wordmark ---------- */
+      #reveal {
+        gap: 26px;
+        align-items: flex-start;
+      }
+      .wordmark {
+        font-size: 232px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: -8px;
+        line-height: 0.9;
+      }
+      #reveal .wordmark {
+        opacity: 0;
+      }
+      #reveal .bar {
+        width: 520px;
+        height: 14px;
+        background: var(--mint);
+        transform: scaleX(0);
+        transform-origin: left center;
+      }
+      #reveal .sub {
+        font-size: 30px;
+        color: var(--ink);
+        font-weight: 400;
+        opacity: 0;
+        margin-top: 6px;
+      }
+
+      /* ---------- Scene 3: chat ---------- */
+      #chat {
+        justify-content: center;
+        align-items: stretch;
+        padding: 0 220px;
+      }
+      .chat-head {
+        display: flex;
+        align-items: center;
+        gap: 22px;
+        margin-bottom: 40px;
+      }
+      .chat-head .sq {
+        width: 70px;
+        height: 70px;
+        background: var(--mint);
+        color: var(--mint-ink);
+        font-weight: 700;
+        font-size: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .chat-head .who {
+        font-size: 24px;
+        color: var(--ink-dim);
+      }
+      .chat-head .who b {
+        color: var(--ink);
+        letter-spacing: 3px;
+      }
+      .crow {
+        display: flex;
+        flex-direction: column;
+        margin-bottom: 30px;
+      }
+      .crow.out {
+        align-items: flex-end;
+      }
+      .crow.in {
+        align-items: flex-start;
+      }
+      .crow .tag {
+        font-size: 20px;
+        color: var(--ink);
+        margin-bottom: 10px;
+      }
+      .msg {
+        max-width: 880px;
+        font-size: 42px;
+        font-weight: 500;
+        line-height: 1.3;
+        padding: 26px 34px;
+        opacity: 0;
+      }
+      .msg.out {
+        background: var(--mint);
+        color: var(--mint-ink);
+        border: 3px solid var(--mint);
+      }
+      .msg.in {
+        background: transparent;
+        color: var(--ink);
+        border: 3px solid var(--ink);
+      }
+      #typing {
+        opacity: 0;
+      }
+      #typing .box {
+        display: inline-flex;
+        gap: 12px;
+        padding: 30px 34px;
+        border: 3px solid var(--ink);
+      }
+      .sqdot {
+        width: 18px;
+        height: 18px;
+        background: var(--ink);
+        animation: blink 0.9s steps(1) infinite;
+      }
+      .sqdot:nth-child(2) {
+        animation-delay: 0.3s;
+      }
+      .sqdot:nth-child(3) {
+        animation-delay: 0.6s;
+      }
+      @keyframes blink {
+        0%,
+        66% {
+          opacity: 1;
+        }
+        67%,
+        100% {
+          opacity: 0.2;
+        }
+      }
+
+      /* ---------- Scene 4: differentiators ---------- */
+      #diff {
+        gap: 30px;
+        align-items: flex-start;
+      }
+      #diff .drow {
+        display: flex;
+        align-items: baseline;
+        gap: 34px;
+        font-size: 92px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: -2px;
+        opacity: 0;
+      }
+      #diff .dnum {
+        font-family: "Space Mono", monospace;
+        font-size: 34px;
+        letter-spacing: 2px;
+        color: var(--mint);
+      }
+
+      /* ---------- Scene 5: outro ---------- */
+      #outro {
+        gap: 24px;
+        align-items: flex-start;
+      }
+      #outro .wordmark {
+        opacity: 0;
+      }
+      #outro .bar {
+        width: 420px;
+        height: 14px;
+        background: var(--mint);
+        transform: scaleX(0);
+        transform-origin: left center;
+      }
+      #outro .reins {
+        font-size: 54px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: -1px;
+        opacity: 0;
+        margin-top: 4px;
+      }
+      #outro .tag {
+        font-size: 26px;
+        color: var(--ink-dim);
+        opacity: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div
+      id="saarthi"
+      data-composition-id="saarthi"
+      data-width="1920"
+      data-height="1080"
+      data-start="0"
+      data-duration="18.7"
+    >
+      <!-- ===== Persistent chrome ===== -->
+      <div
+        id="chrome"
+        class="clip"
+        data-start="0"
+        data-duration="18.7"
+        data-track-index="50"
+      >
+        <div class="border"></div>
+        <div class="lbl tl">Saarthi&trade;</div>
+        <div class="lbl tr">Local-first // No cloud</div>
+        <div class="lbl bl">Family finance</div>
+        <div class="lbl br">We mean business</div>
+      </div>
+
+      <!-- ===== Scene 1: Hook ===== -->
+      <div
+        id="hook"
+        class="scene clip"
+        data-start="0"
+        data-duration="3.7"
+        data-track-index="1"
+      >
+        <div class="idx mono">01 // The advantage</div>
+        <div class="l1">Rich families always have a money guy.</div>
+        <div class="block">What if yours did too?</div>
+      </div>
+
+      <!-- ===== Scene 2: Wordmark ===== -->
+      <div
+        id="reveal"
+        class="scene clip"
+        data-start="3.7"
+        data-duration="2.1"
+        data-track-index="2"
+      >
+        <div class="wordmark">Saarthi</div>
+        <div class="bar"></div>
+        <div class="sub mono">A money guy for your whole family. On your own machine.</div>
+      </div>
+
+      <!-- ===== Scene 3: The conversation ===== -->
+      <div
+        id="chat"
+        class="scene clip"
+        data-start="5.8"
+        data-duration="8.4"
+        data-track-index="3"
+      >
+        <div class="chat-head">
+          <div class="sq">S</div>
+          <div class="who mono"><b>Saarthi</b> / family money guy</div>
+        </div>
+
+        <div class="crow out">
+          <div class="tag mono">You</div>
+          <div class="msg out" id="b-out">
+            Mom's 5L FD matures next month. Where should she park it?
+          </div>
+        </div>
+
+        <div class="crow in" id="typing">
+          <div class="tag mono">Saarthi</div>
+          <div class="box"><span class="sqdot"></span><span class="sqdot"></span><span class="sqdot"></span></div>
+        </div>
+
+        <div class="crow in">
+          <div class="tag mono">Saarthi</div>
+          <div class="msg in" id="b-in1">
+            4 years from retirement. This money can't take equity risk.
+          </div>
+        </div>
+
+        <div class="crow in">
+          <div class="tag mono">Saarthi</div>
+          <div class="msg in" id="b-in2">
+            Emergency fund first, then ladder the rest in a short-term debt fund.
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== Scene 4: Differentiators ===== -->
+      <div
+        id="diff"
+        class="scene clip"
+        data-start="14.2"
+        data-duration="2.66"
+        data-track-index="4"
+      >
+        <div class="drow" id="d1"><span class="dnum">01</span>Knows every member.</div>
+        <div class="drow" id="d2"><span class="dnum">02</span>Teaches, never sells.</div>
+        <div class="drow" id="d3"><span class="dnum">03</span>Data never leaves home.</div>
+      </div>
+
+      <!-- ===== Scene 5: Outro ===== -->
+      <div
+        id="outro"
+        class="scene clip"
+        data-start="16.86"
+        data-duration="1.84"
+        data-track-index="5"
+      >
+        <div class="wordmark">Saarthi</div>
+        <div class="bar"></div>
+        <div class="reins">You hold the reins.</div>
+        <div class="tag mono">Local-first / No cloud / No database</div>
+      </div>
+
+      <!-- ===== Audio: music bed ===== -->
+      <audio
+        id="music"
+        class="clip"
+        data-start="0"
+        data-duration="18.7"
+        data-track-index="200"
+        data-volume="0.6"
+        src="assets/music/happy-beats-business-moves-vol-11-by-ende-dot-app.mp3"
+      ></audio>
+
+      <!-- ===== SFX (hard, mechanical) ===== -->
+      <!-- scene-cut stamps (track 201) -->
+      <audio id="sfx-stamp-1" class="clip" data-start="1.6" data-duration="0.35" data-track-index="201" data-volume="0.5" src="assets/sfx/impactWood_medium_000.ogg"></audio>
+      <audio id="sfx-stamp-2" class="clip" data-start="3.7" data-duration="0.35" data-track-index="201" data-volume="0.5" src="assets/sfx/impactWood_medium_000.ogg"></audio>
+      <audio id="sfx-stamp-3" class="clip" data-start="5.8" data-duration="0.35" data-track-index="201" data-volume="0.45" src="assets/sfx/impactWood_medium_000.ogg"></audio>
+      <audio id="sfx-stamp-outro" class="clip" data-start="16.86" data-duration="0.5" data-track-index="201" data-volume="0.6" src="assets/sfx/impactWood_medium_003.ogg"></audio>
+      <!-- messages (track 202): send click + reply block-drops -->
+      <audio id="sfx-send" class="clip" data-start="6.34" data-duration="0.2" data-track-index="202" data-volume="0.5" src="assets/sfx/click_001.ogg"></audio>
+      <audio id="sfx-reply-1" class="clip" data-start="9.5" data-duration="0.3" data-track-index="202" data-volume="0.5" src="assets/sfx/drop_001.ogg"></audio>
+      <audio id="sfx-reply-2" class="clip" data-start="12.65" data-duration="0.3" data-track-index="202" data-volume="0.5" src="assets/sfx/drop_001.ogg"></audio>
+      <!-- typing (track 203) -->
+      <audio id="sfx-type-1" class="clip" data-start="7.7" data-duration="0.15" data-track-index="203" data-volume="0.28" src="assets/sfx/keypress-020.wav"></audio>
+      <audio id="sfx-type-2" class="clip" data-start="8.5" data-duration="0.15" data-track-index="203" data-volume="0.28" src="assets/sfx/keypress-025.wav"></audio>
+      <!-- differentiator ticks (track 204) -->
+      <audio id="sfx-diff-1" class="clip" data-start="14.22" data-duration="0.2" data-track-index="204" data-volume="0.4" src="assets/sfx/switch_002.ogg"></audio>
+      <audio id="sfx-diff-2" class="clip" data-start="14.76" data-duration="0.2" data-track-index="204" data-volume="0.4" src="assets/sfx/switch_002.ogg"></audio>
+      <audio id="sfx-diff-3" class="clip" data-start="15.28" data-duration="0.2" data-track-index="204" data-volume="0.4" src="assets/sfx/switch_002.ogg"></audio>
+
+      <script>
+        const tl = gsap.timeline({ paused: true });
+        const SNAP = "power4.out";
+
+        /* ---------- Scene 1: Hook (0 - 3.7) — hard cut in ---------- */
+        tl.set("#hook", { opacity: 1 }, 0);
+        tl.fromTo(
+          "#hook .l1",
+          { opacity: 0, x: -40 },
+          { opacity: 1, x: 0, duration: 0.18, ease: SNAP },
+          0.12,
+        );
+        // mint inverted block snaps in on strong cue 1.60s — beat-locked: 1.60s
+        tl.fromTo(
+          "#hook .block",
+          { opacity: 0, x: -30 },
+          { opacity: 1, x: 0, duration: 0.16, ease: SNAP },
+          1.6,
+        );
+        tl.set("#hook", { opacity: 0 }, 3.7);
+
+        /* ---------- Scene 2: Wordmark (3.7 - 5.8) — beat-locked: 3.70s ---------- */
+        tl.set("#reveal", { opacity: 1 }, 3.7);
+        tl.fromTo(
+          "#reveal .wordmark",
+          { opacity: 0, y: 32 },
+          { opacity: 1, y: 0, duration: 0.18, ease: SNAP },
+          3.74,
+        );
+        tl.fromTo(
+          "#reveal .bar",
+          { scaleX: 0 },
+          { scaleX: 1, duration: 0.2, ease: SNAP },
+          3.92,
+        );
+        tl.fromTo(
+          "#reveal .sub",
+          { opacity: 0 },
+          { opacity: 1, duration: 0.2 },
+          4.05,
+        );
+        tl.set("#reveal", { opacity: 0 }, 5.8);
+
+        /* ---------- Scene 3: Chat (5.8 - 14.2) — beat-locked: 5.80s ---------- */
+        tl.set("#chat", { opacity: 1 }, 5.8);
+        // outgoing question — beat-locked: 6.34s
+        tl.fromTo(
+          "#b-out",
+          { opacity: 0, x: 50 },
+          { opacity: 1, x: 0, duration: 0.16, ease: SNAP },
+          6.34,
+        );
+        // typing on, then hard off
+        tl.set("#typing", { opacity: 1 }, 7.5);
+        tl.set("#typing", { opacity: 0 }, 9.3);
+        // reply 1 — beat-locked: 9.50s
+        tl.fromTo(
+          "#b-in1",
+          { opacity: 0, x: -50 },
+          { opacity: 1, x: 0, duration: 0.16, ease: SNAP },
+          9.5,
+        );
+        // reply 2 — beat-locked: 12.65s
+        tl.fromTo(
+          "#b-in2",
+          { opacity: 0, x: -50 },
+          { opacity: 1, x: 0, duration: 0.16, ease: SNAP },
+          12.65,
+        );
+        tl.set("#chat", { opacity: 0 }, 14.2);
+
+        /* ---------- Scene 4: Differentiators (14.2 - 16.86) — beat-grid ---------- */
+        tl.set("#diff", { opacity: 1 }, 14.2);
+        // beat-grid: d1 14.22s, d2 14.76s, d3 15.28s — then hold the full set
+        tl.fromTo("#d1", { opacity: 0, x: -32 }, { opacity: 1, x: 0, duration: 0.15, ease: SNAP }, 14.22);
+        tl.fromTo("#d2", { opacity: 0, x: -32 }, { opacity: 1, x: 0, duration: 0.15, ease: SNAP }, 14.76);
+        tl.fromTo("#d3", { opacity: 0, x: -32 }, { opacity: 1, x: 0, duration: 0.15, ease: SNAP }, 15.28);
+        tl.set("#diff", { opacity: 0 }, 16.86);
+
+        /* ---------- Scene 5: Outro (16.86 - 18.7) ---------- */
+        tl.set("#outro", { opacity: 1 }, 16.86);
+        tl.fromTo(
+          "#outro .wordmark",
+          { opacity: 0, y: 24 },
+          { opacity: 1, y: 0, duration: 0.18, ease: SNAP },
+          16.9,
+        );
+        tl.fromTo(
+          "#outro .bar",
+          { scaleX: 0 },
+          { scaleX: 1, duration: 0.22, ease: SNAP },
+          17.1,
+        );
+        tl.fromTo(
+          "#outro .reins",
+          { opacity: 0 },
+          { opacity: 1, duration: 0.18 },
+          17.3,
+        );
+        tl.fromTo(
+          "#outro .tag",
+          { opacity: 0 },
+          { opacity: 1, duration: 0.2 },
+          17.6,
+        );
+        // music cut-to-fade under the outro stamp
+        tl.to("#music", { duration: 1.2, volume: 0 }, 17.4);
+
+        window.__timelines = window.__timelines || {};
+        window.__timelines["saarthi"] = tl;
+      </script>
+    </div>
+  </body>
+</html>

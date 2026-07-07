@@ -39,6 +39,7 @@ const readDraft = () => {
   }
 }
 
+
 const writeDraft = (draft) => {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(draft))
@@ -280,5 +281,32 @@ export const useOnboardingStore = create((set, get) => ({
     persist(set, get, {
       checks: { ...get().checks, [memberId]: { ...current, ...patch } },
     })
+  },
+
+  // Fetch the saved roster from the backend on every startup.
+  // Backend is source of truth for completion: members marked complete on the
+  // backend always show all phases done, overriding any stale localStorage state.
+  // On a fresh device (empty localStorage), the full roster is populated too.
+  hydrateFromBackend: async () => {
+    try {
+      const r = await fetch(ENDPOINTS.onboardingRoster)
+      if (!r.ok) return
+      const data = await r.json()
+      if (!data.members || data.members.length === 0) return
+      const ALL_DONE = { goals: true, money: true, check: true }
+      const currentProgress = get().progress
+      const progress = { ...currentProgress }
+      data.members.forEach((m) => {
+        if (m.complete) progress[m.id] = ALL_DONE
+      })
+      const hasLocalMembers = get().members.length > 0
+      const patch = hasLocalMembers
+        ? { progress }
+        : { ...EMPTY_DRAFT, members: data.members, whoDone: true, progress }
+      writeDraft({ ...get(), ...patch })
+      set(patch)
+    } catch {
+      // backend unreachable — keep existing state
+    }
   },
 }))

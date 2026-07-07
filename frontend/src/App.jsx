@@ -14,6 +14,11 @@ function App() {
   const activeMember = useChatStore((s) => s.activeMember)
   const onboardingRoute = useOnboardingStore((s) => s.route)
   const openHub = useOnboardingStore((s) => s.openHub)
+  const hydrateFromBackend = useOnboardingStore((s) => s.hydrateFromBackend)
+
+  useEffect(() => {
+    hydrateFromBackend()
+  }, [])
 
   useEffect(() => {
     fetch(ENDPOINTS.members)

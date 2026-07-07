@@ -235,6 +235,36 @@ def onboarding_roster(req: RosterRequest) -> dict:
     }
 
 
+@app.get("/api/onboarding/roster")
+def get_roster() -> dict:
+    """Return the saved family roster with per-member completion status.
+    New devices use this to hydrate without repeating onboarding."""
+    memory_root = settings.resolve(settings.memory_dir)
+    household_path = memory_root / "family" / "household.md"
+    if not household_path.exists():
+        return {"members": [], "self": None}
+    content = household_path.read_text(encoding="utf-8")
+    members = []
+    for line in content.splitlines():
+        # Parse table rows: | member_id | Name | Relationship | Earning |
+        if not line.startswith("|") or "member_id" in line or "---" in line:
+            continue
+        parts = [p.strip() for p in line.strip("|").split("|")]
+        if len(parts) < 4:
+            continue
+        mid, name, relationship, earning = parts[0], parts[1], parts[2], parts[3]
+        members.append({
+            "id": mid,
+            "name": name,
+            "relationship": relationship,
+            "isSelf": relationship.lower() == "self",
+            "earns": earning.lower() == "yes",
+            "complete": onboarding.is_complete(memory_root, mid),
+        })
+    self_id = next((m["id"] for m in members if m["isSelf"]), None)
+    return {"members": members, "self": self_id}
+
+
 class MemberDataRequest(BaseModel):
     finances: dict = {}
     goals: list[dict] = []
