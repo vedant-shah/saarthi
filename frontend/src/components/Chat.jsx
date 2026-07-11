@@ -113,6 +113,29 @@ export function Chat() {
     send(trimmed)
   }
 
+  // Desktop: Enter sends, Shift/Cmd/Ctrl+Enter inserts a newline. Touch devices
+  // (phones) keep Enter as a plain newline — the on-screen key must never fire a
+  // half-written message.
+  function handleKeyDown(e) {
+    if (e.key !== 'Enter') return
+    if (window.matchMedia('(pointer: coarse)').matches) return
+    if (e.shiftKey) return // Shift+Enter: textarea inserts the newline itself
+    if (e.metaKey || e.ctrlKey) {
+      // Cmd/Ctrl+Enter: insert a newline manually (the textarea default is a no-op).
+      e.preventDefault()
+      const el = e.target
+      const { selectionStart: start, selectionEnd: end } = el
+      const next = text.slice(0, start) + '\n' + text.slice(end)
+      setText(next)
+      requestAnimationFrame(() => {
+        el.selectionStart = el.selectionEnd = start + 1
+      })
+      return
+    }
+    e.preventDefault()
+    handleSubmit()
+  }
+
   // Stop the in-flight turn and bring the sent message back into the input to
   // edit and resend. Enter inserts a newline (no submit-on-Enter); send is the
   // button only — important on phones where the on-screen Enter key would
@@ -257,6 +280,7 @@ export function Chat() {
               ref={textareaRef}
               value={text}
               onChange={(e) => setText(e.target.value)}
+              onKeyDown={handleKeyDown}
               placeholder="Message"
               disabled={streaming && messages.length === 0}
               rows={1}

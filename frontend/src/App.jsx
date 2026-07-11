@@ -74,7 +74,7 @@ function App() {
 
   return (
     <div
-      className="flex flex-col fixed inset-x-0 top-0 h-dvh bg-[var(--color-bg)]"
+      className="flex flex-col fixed inset-x-0 top-0 mx-auto h-dvh max-w-md bg-[var(--color-bg)]"
       style={viewport ? { top: `${viewport.top}px`, height: `${viewport.height}px` } : undefined}
     >
       <header className="sticky top-0 z-10 grid grid-cols-[auto_1fr_auto] items-center gap-2 px-3 py-2.5 border-b border-[var(--color-border)] bg-[var(--color-bg)] shrink-0">
