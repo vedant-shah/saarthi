@@ -146,7 +146,10 @@ def _build_full_prompt(
         loaded_paths.add(path)
 
     tier1_text = "\n\n".join(tier1_parts)
-    tier1 = SystemBlock(text=tier1_text, cache=False)
+    # Cache breakpoint sits on Tier 1 — the large, session-stable prefix (member
+    # files + session context). It precedes the classifier-predicted Tier 2,
+    # which can vary per turn, so caching here stays valid even if Tier 2 changes.
+    tier1 = SystemBlock(text=tier1_text, cache=True)
 
     # Tier 2 — classifier-predicted files (Day 1: always empty; coded for forward compat)
     relevant_files = classifier_output.get("relevant_memory_files", [])

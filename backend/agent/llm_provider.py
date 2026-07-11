@@ -113,7 +113,7 @@ def _render_system(blocks: list[SystemBlock]) -> list[dict]:
     for block in blocks:
         item: dict = {"type": "text", "text": block.text}
         if block.cache and settings.enable_cache:
-            item["cache_control"] = {"type": "ephemeral"}
+            item["cache_control"] = {"type": "ephemeral", "ttl": "1h"}
         rendered.append(item)
     return rendered
 
@@ -223,7 +223,16 @@ class AnthropicProvider:
             if isinstance(status, int):
                 code = f"http_{status}"
             logger.exception("anthropic API error")
-            yield StreamError(message=str(e), code=code)
+            # Out-of-credits (400 with "credit balance is too low") is a billing
+            # state, not a bug. Surface friendly text instead of the raw API blob;
+            # the full exception is already in the log above.
+            if "credit balance is too low" in str(e).lower():
+                yield StreamError(
+                    message="hey you are out of credits, please add some",
+                    code="insufficient_credits",
+                )
+            else:
+                yield StreamError(message=str(e), code=code)
         except Exception as e:
             logger.exception("unexpected provider error")
             yield StreamError(message=f"unexpected: {e!s}", code="unexpected_error")

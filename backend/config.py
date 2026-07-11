@@ -31,7 +31,7 @@ class Settings(BaseSettings):
     # How many recent dated session-summary blocks of conversations.md to preload
     # into Tier 1. Older summaries stay on disk, reachable via recall_conversation.
     preloaded_summary_count: int = 5
-    enable_cache: bool = False
+    enable_cache: bool = True
     cors_origins: list[str] = ["http://localhost:5173"]
     # Advertise the app on the LAN under its own Bonjour/mDNS name so family
     # devices reach it at http://<mdns_name>.local:<mdns_port> without an IP or
