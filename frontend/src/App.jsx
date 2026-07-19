@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
-import { UsersThree } from '@phosphor-icons/react'
+import { Gear } from '@phosphor-icons/react'
 import { ENDPOINTS } from './lib/api'
 import { useChatStore } from './store/chatStore'
 import { useOnboardingStore } from './store/onboardingStore'
 import { MemberSwitcher } from './components/MemberSwitcher'
 import { Chat } from './components/Chat'
 import { OnboardingNudge } from './components/OnboardingNudge'
+import { SettingsSheet } from './components/SettingsSheet'
 import { OnboardingRoot } from './onboarding/OnboardingRoot'
 
 function App() {
@@ -54,6 +55,8 @@ function App() {
   // stays just above the keyboard), and offsetTop counters the scroll iOS does
   // when the keyboard appears (without it the app drifts and leaves a gap). No-op
   // on browsers without the API (falls back to h-dvh via the className).
+  const [settingsOpen, setSettingsOpen] = useState(false)
+
   const [viewport, setViewport] = useState(null)
   useEffect(() => {
     const vv = window.visualViewport
@@ -88,11 +91,11 @@ function App() {
         </div>
         <div className="justify-self-end">
           <button
-            onClick={openHub}
-            className="press-shrink flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-[var(--color-border)] px-3 py-1.5 text-[12px] font-medium text-[var(--color-ink-muted)] transition-colors hover:text-[var(--color-ink)]"
+            onClick={() => setSettingsOpen(true)}
+            aria-label="Settings"
+            className="press-shrink flex shrink-0 items-center rounded-full border border-[var(--color-border)] p-1.5 text-[var(--color-ink-muted)] transition-colors hover:text-[var(--color-ink)]"
           >
-            <UsersThree size={15} weight="bold" />
-            Family setup
+            <Gear size={18} weight="bold" />
           </button>
         </div>
       </header>
@@ -100,6 +103,7 @@ function App() {
       <main className="flex-1 overflow-hidden">
         <Chat />
       </main>
+      {settingsOpen && <SettingsSheet onClose={() => setSettingsOpen(false)} />}
     </div>
   )
 }

@@ -34,7 +34,8 @@ from backend.agent import (
     sessions,
 )
 from backend.agent.llm_provider import get_provider
-from backend.agent.memory_updater import close_session
+from backend import runtime_config
+from backend.agent.memory_updater import close_session, reset_provider
 from backend.agent.pipeline import TurnDone, TurnError, TurnToken
 from backend.config import settings
 from backend.logging_setup import configure_logging
@@ -128,6 +129,10 @@ class ChatRequest(BaseModel):
 
 class SessionCloseRequest(BaseModel):
     member: str | None = None
+
+
+class ApiKeyRequest(BaseModel):
+    api_key: str
 
 
 # Member ids are used as path segments under memory/ and sessions/ — restrict
@@ -390,6 +395,25 @@ async def chat(
                 return
 
     return EventSourceResponse(event_stream())
+
+
+@app.get("/api/settings/api-key")
+def get_api_key_status() -> dict:
+    """Report whether a Claude API key is saved. Never returns the key itself."""
+    return {"configured": runtime_config.load_api_key() is not None}
+
+
+@app.post("/api/settings/api-key", status_code=204)
+def set_api_key(req: ApiKeyRequest) -> Response:
+    """Save a Claude API key and rebuild BOTH providers (chat + summarizer) so it
+    takes effect at once, without a restart."""
+    global _provider
+    if not req.api_key.strip():
+        raise HTTPException(status_code=400, detail="api_key must not be empty")
+    runtime_config.save_api_key(req.api_key)
+    _provider = get_provider()
+    reset_provider()  # drop the summarizer's separately-cached provider too
+    return Response(status_code=204)
 
 
 @app.post("/session/close", status_code=204)

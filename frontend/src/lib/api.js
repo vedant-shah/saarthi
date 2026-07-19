@@ -11,4 +11,5 @@ export const ENDPOINTS = Object.freeze({
   onboardingExtractDocument: '/api/onboarding/extract-document',
   onboardingPortfolioSnapshot: '/api/onboarding/portfolio-snapshot',
   onboardingGroupHoldings: '/api/onboarding/group-holdings',
+  settingsApiKey: '/api/settings/api-key',
 })

@@ -40,6 +40,7 @@ cache/
 .env
 .env.*
 !.env.example
+settings.local.json
 
 # ── OS / editor ───────────────────────────────────────────────────────────────
 .DS_Store

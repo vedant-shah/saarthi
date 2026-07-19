@@ -64,6 +64,15 @@ def _get_provider() -> LLMProvider:
     return _provider
 
 
+def reset_provider() -> None:
+    """Drop the cached summarizer provider so the next run rebuilds it with the
+    current API key. Called when the key changes at runtime (Settings panel): this
+    module caches its own provider independently of the chat one, so without this
+    a saved key would not reach the summarizer until a restart."""
+    global _provider
+    _provider = None
+
+
 def _existing_memory_for(member: str) -> str:
     """The member's current-value files concatenated with their `<!-- id:... -->`
     markers intact, so the extractor sees what already exists instead of running

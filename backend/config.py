@@ -4,7 +4,9 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
-    anthropic_api_key: str
+    # Optional: a key saved via the Settings panel (settings.local.json) takes
+    # precedence. Left blank when the app is keyed entirely from the UI.
+    anthropic_api_key: str = ""
     llm_provider: str = "anthropic"
     main_agent_model: str = "claude-sonnet-4-6"
     classifier_model: str = "claude-haiku-4-5-20251001"

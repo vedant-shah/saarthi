@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from backend.agent.memory_updater import close_session
 from backend.agent.sessions import STALE_AFTER_SECONDS, adopt, evict_if_active
@@ -27,6 +27,17 @@ from backend.agent.transcripts import is_post_processed, read_turns, transcript_
 from backend.config import settings
 
 logger = logging.getLogger(__name__)
+
+
+# Per-session retry backoff for the sweep. Retrying a stale session every 60s when
+# the summarizer API is failing spams it endlessly. Instead each failing session is
+# backed off exponentially (60s, 120s, 240s ... capped at 1h), so an outage is
+# ridden out without hammering — and no session is ever abandoned; it summarizes
+# once the API recovers. State is in-memory: after a restart the backlog is retried
+# once, then backs off again.
+_RETRY_BASE_SECONDS = 60
+_RETRY_MAX_SECONDS = 3600
+_retry_state: dict[tuple[str, str], tuple[int, datetime]] = {}
 
 
 def last_message_ts(member: str, session_id: str) -> datetime | None:
@@ -135,10 +146,28 @@ async def scan_and_close_stale(now: datetime) -> int:
     stale = _stale_open_sessions(now)
     closed = 0
     for member, session_id in stale:
+        key = (member, session_id)
+        attempts, next_eligible = _retry_state.get(key, (0, None))
+        # Skip sessions still inside their exponential-backoff window.
+        if next_eligible is not None and now < next_eligible:
+            continue
         try:
             await close_session(member, session_id)
             evict_if_active(member, session_id)
             closed += 1
         except Exception:
             logger.exception("durability: failed to close %s/%s", member, session_id)
+        # The durable success signal is the post-processing stamp. Anything else
+        # (a swallowed summarizer failure or a raised error) schedules the next
+        # retry with exponential backoff instead of hammering every 60s.
+        if is_post_processed(member, session_id):
+            _retry_state.pop(key, None)
+        else:
+            attempts += 1
+            delay = min(_RETRY_BASE_SECONDS * (2 ** (attempts - 1)), _RETRY_MAX_SECONDS)
+            _retry_state[key] = (attempts, now + timedelta(seconds=delay))
+            logger.info(
+                "durability: %s/%s not processed (attempt %d) — backing off %ds",
+                member, session_id, attempts, delay,
+            )
     return closed
