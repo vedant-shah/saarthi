@@ -97,16 +97,41 @@ class LLMProvider(Protocol):
 
 # (input_$/M_tokens, output_$/M_tokens) — approximate public pricing
 _PRICING: dict[str, tuple[float, float]] = {
-    "claude-haiku-4-5": (0.80, 4.00),
+    "claude-haiku-4-5": (1.00, 5.00),
     "claude-sonnet-4-6": (3.00, 15.00),
-    "claude-opus-4-7": (15.00, 75.00),
+    "claude-opus-4": (5.00, 25.00),
 }
 
 
-def _compute_cost(model: str, input_tokens: int, output_tokens: int) -> float:
+# Cache-token pricing as multiples of the model's base input rate: a cache READ is
+# 0.1x, a cache WRITE is 1.25x (5-min TTL) or 2x (1-hour TTL). We write with a
+# 1-hour TTL (see _render_system), so writes are billed at 2x.
+_CACHE_READ_MULT = 0.1
+_CACHE_WRITE_MULT = 2.0
+
+
+def _compute_cost(
+    model: str,
+    input_tokens: int,
+    output_tokens: int,
+    cache_read_tokens: int = 0,
+    cache_write_tokens: int = 0,
+) -> float:
+    """Approximate USD cost for one call. `input_tokens` is the UNcached input —
+    the API reports cache read/write tokens separately — so cached tokens are
+    priced ON TOP at their own multiples, never double-counted against input."""
     for prefix, (in_rate, out_rate) in _PRICING.items():
         if model.startswith(prefix):
-            return round((input_tokens * in_rate + output_tokens * out_rate) / 1_000_000, 6)
+            return round(
+                (
+                    input_tokens * in_rate
+                    + cache_read_tokens * in_rate * _CACHE_READ_MULT
+                    + cache_write_tokens * in_rate * _CACHE_WRITE_MULT
+                    + output_tokens * out_rate
+                )
+                / 1_000_000,
+                6,
+            )
     return 0.0
 
 
@@ -248,7 +273,13 @@ class AnthropicProvider:
                     cache_write_tokens=cache_write_tokens,
                     model=chosen_model,
                     latency_ms=round((time.monotonic() - t0) * 1000, 1),
-                    cost_usd=_compute_cost(chosen_model, input_tokens, output_tokens),
+                    cost_usd=_compute_cost(
+                        chosen_model,
+                        input_tokens,
+                        output_tokens,
+                        cache_read_tokens,
+                        cache_write_tokens,
+                    ),
                 )
                 return
 
@@ -323,15 +354,17 @@ class AnthropicProvider:
                 if usage is not None:
                     in_tok = getattr(usage, "input_tokens", 0) or 0
                     out_tok = getattr(usage, "output_tokens", 0) or 0
+                    cr_tok = getattr(usage, "cache_read_input_tokens", 0) or 0
+                    cw_tok = getattr(usage, "cache_creation_input_tokens", 0) or 0
                     logger.info(
                         "llm_json: label=%s model=%s in=%d out=%d cache_r=%d cache_w=%d cost_usd=%.6f",
                         label or "-",
                         chosen_model,
                         in_tok,
                         out_tok,
-                        getattr(usage, "cache_read_input_tokens", 0) or 0,
-                        getattr(usage, "cache_creation_input_tokens", 0) or 0,
-                        _compute_cost(chosen_model, in_tok, out_tok),
+                        cr_tok,
+                        cw_tok,
+                        _compute_cost(chosen_model, in_tok, out_tok, cr_tok, cw_tok),
                     )
                 for block in resp.content:
                     if getattr(block, "type", None) == "tool_use":
